@@ -4,10 +4,6 @@
 #include "remotescp.h"
 #include "log.h"
 
-//scpreadf takes in remotfilename which should have complete uri and localfilename should have relative path
-//without root at beginning
-//returns -1 if there's an error
-//returns 0 on success
 
 
 
@@ -26,6 +22,10 @@ int main(void) {
 }
 #endif
 
+//scpreadf takes in remotfilename which should have complete uri and localfilename should have relative path
+//without root at beginning
+//returns -1 if there's an error
+//returns 0 on success
 int scpreadf(char *remotefileuri, char *localfilename)
 {
     CURL *curl;

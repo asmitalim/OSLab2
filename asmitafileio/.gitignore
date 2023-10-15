@@ -1,0 +1,7 @@
+*.o
+asmfs
+asmitaapp
+asmitaremotetest
+bbfs
+remotescp
+

@@ -1,14 +1,17 @@
 BUILDHOST=`uname -n`
 all: asmitaapp bbfs asmfs asmitaremotetest remotescp
-	@echo "Build Host ----  $(BUILDHOST)"
+	@echo "............................."
+	@echo "Building on:$(BUILDHOST)"
 	@echo "Asmita app is built"
     
 
 
 asmitaapp: asmitaapp.o 
+	echo "asmitaapp"
 	gcc -o asmitaapp asmitaapp.o
 
 asmitaremotetest: asmitaremotetest.o 
+	echo "asmitaremotehost"
 	gcc -o asmitaremotetest asmitaremotetest.o
 
 
@@ -24,11 +27,13 @@ clean:
 	rm -f remotescp
 
 asmitafs: asmitaapp 
+	echo "mounting and running the UT IO test"
 	make mountasmitafs
 	echo "Asmita app " > /home/asmita/OSLab2/asmitafileio/localroot/foo
 	cd /home/asmita/OSLab2/asmitafileio/mountdir; ../asmitaapp
 
 asmitaremotefs: asmitaremotetest
+	echo "asmitaremotefs"
 	make mountasmitafs
 	echo "Asmita remote test coming from local machine" > /home/asmita/OSLab2/asmitafileio/localroot/foo
 	echo "Asmita remote test coming from remote machine" > /tmp/remotejunk
