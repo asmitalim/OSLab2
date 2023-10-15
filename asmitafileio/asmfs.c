@@ -81,7 +81,8 @@ int bb_getattr(const char *path, struct stat *statbuf)
 
     retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
 
-    log_stat(statbuf);
+	// TODO 
+    //log_stat(statbuf);
 
     return retstat;
 }
@@ -308,28 +309,38 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 
     log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n", path, fi);
 
+    bb_fullpath(fpath, path);
+
     //TODO: change this later
 
-    sprintf(fullremoteuri,"scp://asmita@%s/home/asmita/lab2exports/%s", &(BB_DATA->remotehostname[0]), &fpath[0]);
-    sprintf(pathintemp, "/tmp/%s", &path[1]);
-    scpreadf(uptr,tptr);
+
+    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", BB_DATA->remoteIP,BB_DATA->remotehostname, path);
+
+    sprintf(pathintemp, "/tmp%s", path);
+	scpreadf(uptr,tptr);
 
 
-    bb_fullpath(fpath, path);
+
     // if the open call succeeds, my retstat is the file descriptor,
     // else it's -errno.  I'm making sure that in that case the saved
     // file descriptor is exactly -1.
+
+
+
     fd = log_syscall("open", open(fpath, fi->flags), 0);
     if (fd < 0)
         retstat = log_error("open");
 
     fi->fh = fd;
 
+
+	/*
     fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
     if (fdtemp < 0)
         retstat = log_error("open");
 
     fi->fh = fdtemp;
+	*/
 
     log_fi(fi);
 
@@ -938,12 +949,12 @@ int main(int argc, char *argv[])
     argv[argc - 1] = NULL;
     argc--;
 
-    sprintf(&(bb_data->remoteIP[0]), "%s", argv[argc - 2]);
+    sprintf(bb_data->remoteIP, "%s", argv[argc - 2]);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;
 
-    sprintf(&(bb_data->remotehostname[0]), "%s", argv[argc - 2]);
+    sprintf(bb_data->remotehostname, "%s", argv[argc - 2]);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;

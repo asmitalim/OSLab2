@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <curl/curl.h>
 #include <fuse.h>
-#include "remotescp.h"
-#include "log.h"
+#include <string.h>
 
+#include "remotescp.h"
+
+#include "log.h"
 
 
 
@@ -15,6 +17,8 @@ int main(void) {
 
 #ifdef buntz
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com:/etc/hosts","/tmp/asmijunk");
+    scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo","/tmp/fooremote");
+    scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo","/tmp/foo");
 
 #else
     scpreadf("scp://asmita@master0/etc/hosts","/tmp/asmijunk");
@@ -24,14 +28,30 @@ int main(void) {
 
 //scpreadf takes in remotfilename which should have complete uri and localfilename should have relative path
 //without root at beginning
+
+//  the localfilename is required to have /tmp as prefix
 //returns -1 if there's an error
 //returns 0 on success
+
 int scpreadf(char *remotefileuri, char *localfilename)
 {
     CURL *curl;
     CURLcode res;
-    static char remoteuribuffer[2000];
-    static char localfilebuffer[2000];
+	const char *slashtmp = "/tmp" ; 
+
+
+
+    static char remoteuribuffer[5000];
+    static char localfilebuffer[5000];
+
+	log_msg("SCPREAD:Length of local file name = %ld\n",strlen(localfilename));
+	log_msg("SCPREAD:4 letter prefix of local file name matches? = %s\n",strncmp(localfilename,slashtmp,4L)?"no":"yes");
+
+	if ((strlen(localfilename) < 4) || (strncmp(localfilename,slashtmp, 4) != 0 )) {
+		log_msg("SCPREAD:can not have Localfilename prefix other than /tmp");
+		return -1 ;
+	}
+
     sprintf(localfilebuffer, "%s", localfilename);
     sprintf(remoteuribuffer, "%s", remotefileuri);
 
@@ -57,16 +77,17 @@ int scpreadf(char *remotefileuri, char *localfilename)
 
         /* Check for errors */
         if (res != CURLE_OK){
-            log_msg("curl_easy_perform() failed: %s\n",
+            log_msg("SCPREAD:curl_easy_perform() failed: %s\n",
                     curl_easy_strerror(res));
             return -1;
         }
         else
         {
-            log_msg("SCPREAD:Successful!");
+            log_msg("SCPREAD:Successful!\n");
         }
 
         /* always cleanup */
+		fclose(fp);
         curl_easy_cleanup(curl);
         return 0;
     }

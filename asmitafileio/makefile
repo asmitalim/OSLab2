@@ -1,4 +1,7 @@
 BUILDHOST=`uname -n`
+MAKE_ASMFS_HOST=${ASMFS_HOST}
+MAKE_ASMFS_USER=${ASMFS_USER}
+
 all: asmitaapp bbfs asmfs asmitaremotetest remotescp
 	@echo "............................."
 	@echo "Building on:$(BUILDHOST)"
@@ -28,26 +31,27 @@ clean:
 
 asmitafs: asmitaapp 
 	echo "mounting and running the UT IO test"
-	make mountasmitafs
-	echo "Asmita app " > /home/asmita/OSLab2/asmitafileio/localroot/foo
-	cd /home/asmita/OSLab2/asmitafileio/mountdir; ../asmitaapp
+	make mountasmfs
+	echo "Asmita app " > ./localroot/foo
+	cd ./mountdir; ../asmitaapp
 
 asmitaremotefs: asmitaremotetest
 	echo "asmitaremotefs"
-	make mountasmitafs
-	echo "Asmita remote test coming from local machine" > /home/asmita/OSLab2/asmitafileio/localroot/foo
-	echo "Asmita remote test coming from remote machine" > /tmp/remotejunk
-	scp /tmp/remotejunk master0:/home/asmita/lab2exports/foo
-	cd /home/asmita/OSLab2/asmitafileio/mountdir; ../asmitaremotetest
+	make mountasmfs
+	echo "User Message coming from local machine" > ./localroot/foo
+	echo "User Message coming from remote machine" > /tmp/remotejunk
+	scp /tmp/remotejunk "${ASMFS_USER}@${ASMFS_HOST}:~/asmfsexports/foo"
+	rm -f /tmp/remotejunk
+	cd ./mountdir; ../asmitaremotetest
 
 
 
-mountasmitafs:
-	rm -f /home/asmita/OSLab2/asmitafileio/bbfs.log
-	/home/asmita/OSLab2/asmitafileio/asmfs master0 192.168.10.223 /home/asmita/OSLab2/asmitafileio/localroot /home/asmita/OSLab2/asmitafileio/mountdir
+mountasmfs:
+	rm -f ./asmfs.log
+	./asmfs ${ASMFS_HOST} ${ASMFS_USER} localroot mountdir
 	
-unmountasmitafs:
-	fusermount -u /home/asmita/OSLab2/asmitafileio/mountdir
+umountasmfs:
+	fusermount -u mountdir
 
 bbfs: bbfs.o log.o
 	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2  -D$(BUILDHOST)  -o bbfs bbfs.o log.o -lfuse -pthread
