@@ -8,6 +8,24 @@
 //without root at beginning
 //returns -1 if there's an error
 //returns 0 on success
+
+
+
+#ifdef REMOTESCPDEBUG
+
+#define log_msg printf
+
+int main(void) {   
+
+#ifdef buntz
+    scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com:/etc/hosts","/tmp/asmijunk");
+
+#else
+    scpreadf("scp://asmita@master0/etc/hosts","/tmp/asmijunk");
+#endif
+}
+#endif
+
 int scpreadf(char *remotefileuri, char *localfilename)
 {
     CURL *curl;
@@ -15,12 +33,18 @@ int scpreadf(char *remotefileuri, char *localfilename)
     static char remoteuribuffer[2000];
     static char localfilebuffer[2000];
     sprintf(localfilebuffer, "%s", localfilename);
+    sprintf(remoteuribuffer, "%s", remotefileuri);
+
     log_msg("SCPREAD:Local file path: %s \n", localfilebuffer);
     log_msg("SCPREAD:Remote file path: %s \n", remoteuribuffer);
 
 
+
+
+
     curl = curl_easy_init();
     FILE *fp = fopen(localfilebuffer, "wb");
+
     if (curl)
     {
         curl_easy_setopt(curl, CURLOPT_URL, remotefileuri);
@@ -30,6 +54,7 @@ int scpreadf(char *remotefileuri, char *localfilename)
 
         /* Perform the request, res will get the return code */
         res = curl_easy_perform(curl);
+
         /* Check for errors */
         if (res != CURLE_OK){
             log_msg("curl_easy_perform() failed: %s\n",
@@ -51,36 +76,3 @@ int scpreadf(char *remotefileuri, char *localfilename)
     }
 }
 
-#ifdef REMOTESCPDEBUG
-int main(void)
-{   
-    scpreadf("scp://asmita@master0/etc/hosts","/tmp/asmijunk");
-
-    /*
-    CURL *curl;
-    CURLcode res;
-    
-    curl = curl_easy_init();
-    FILE *fp = fopen("./asmitatempscptest", "wb");
-    if (curl)
-    {
-        curl_easy_setopt(curl, CURLOPT_URL, "scp://asmita@master0/etc/hosts");
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK)
-            fprintf(stderr, "curl_easy_perform() failed: %s\n",
-                    curl_easy_strerror(res));
-        else
-        {
-            printf("Successful!");
-        }
-
-        curl_easy_cleanup(curl);
-    }
-    */
-
-    return 0;
-}
-#endif

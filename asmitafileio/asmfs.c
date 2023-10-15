@@ -302,12 +302,14 @@ int bb_open(const char *path, struct fuse_file_info *fi)
     char fullremoteuri[5000];
     char* tptr;
     char* uptr;
+
     tptr=&pathintemp[0];
     uptr=&fullremoteuri[0];
-    log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n",
-            path, fi);
+
+    log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n", path, fi);
 
     //TODO: change this later
+
     sprintf(fullremoteuri,"scp://asmita@%s/home/asmita/lab2exports/%s", &(BB_DATA->remotehostname[0]), &fpath[0]);
     sprintf(pathintemp, "/tmp/%s", &path[1]);
     scpreadf(uptr,tptr);
@@ -947,6 +949,20 @@ int main(int argc, char *argv[])
     argc--;
 
     bb_data->logfile = log_open();
+
+
+
+
+    fprintf(stderr, "parameters fuse_main\n");
+    fprintf(stderr, "remoteIP:%s\n", bb_data->remoteIP);
+    fprintf(stderr, "remoteHost:%s\n", bb_data->remotehostname);
+
+
+    fprintf(stderr, "argc %d\n", argc);
+    for( int x =  0 ; x < argc ; x++) {
+        fprintf(stderr, "Arguments [%d] is %s\n",x,argv[x]);
+    }
+
 
     // turn over control to fuse
     fprintf(stderr, "about to call fuse_main\n");
