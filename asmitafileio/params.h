@@ -26,8 +26,8 @@
 struct bb_state {
     FILE *logfile;
     char *rootdir;
-    char* remotehostname;
-    char* remoteIP;
+    char remotehostname[200];
+    char remoteIP[50];
 };
 #define BB_DATA ((struct bb_state *) fuse_get_context()->private_data)
 

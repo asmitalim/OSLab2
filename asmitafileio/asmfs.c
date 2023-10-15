@@ -42,6 +42,7 @@
 #endif
 
 #include "log.h"
+#include "remotescp.h"
 
 //  All the paths I see are relative to the root of the mounted
 //  filesystem.  In order to get to the underlying filesystem, I need to
@@ -295,12 +296,24 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
     int fd;
+    int fdtemp;
     char fpath[PATH_MAX];
-
+    char pathintemp[5000];
+    char fullremoteuri[5000];
+    char* tptr;
+    char* uptr;
+    tptr=&pathintemp[0];
+    uptr=&fullremoteuri[0];
     log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n",
             path, fi);
-    bb_fullpath(fpath, path);
 
+    //TODO: change this later
+    sprintf(fullremoteuri,"scp://asmita@%s/home/asmita/lab2exports/%s", &(BB_DATA->remotehostname[0]), &fpath[0]);
+    sprintf(pathintemp, "/tmp/%s", &path[1]);
+    scpreadf(uptr,tptr);
+
+
+    bb_fullpath(fpath, path);
     // if the open call succeeds, my retstat is the file descriptor,
     // else it's -errno.  I'm making sure that in that case the saved
     // file descriptor is exactly -1.
@@ -309,6 +322,12 @@ int bb_open(const char *path, struct fuse_file_info *fi)
         retstat = log_error("open");
 
     fi->fh = fd;
+
+    fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
+    if (fdtemp < 0)
+        retstat = log_error("open");
+
+    fi->fh = fdtemp;
 
     log_fi(fi);
 
@@ -917,12 +936,12 @@ int main(int argc, char *argv[])
     argv[argc - 1] = NULL;
     argc--;
 
-    bb_data->remoteIP =argv[argc - 2];
+    sprintf(&(bb_data->remoteIP[0]), "%s", argv[argc - 2]);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;
 
-    bb_data->remotehostname = argv[argc - 2];
+    sprintf(&(bb_data->remotehostname[0]), "%s", argv[argc - 2]);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;

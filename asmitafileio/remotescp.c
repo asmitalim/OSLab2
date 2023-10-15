@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <curl/curl.h>
+#include <fuse.h>
+#include "remotescp.h"
+#include "log.h"
+
 //scpreadf takes in remotfilename which should have complete uri and localfilename should have relative path
 //without root at beginning
 //returns -1 if there's an error
@@ -10,7 +14,10 @@ int scpreadf(char *remotefileuri, char *localfilename)
     CURLcode res;
     static char remoteuribuffer[2000];
     static char localfilebuffer[2000];
-    sprintf(localfilebuffer, "/tmp/%s", localfilename);
+    sprintf(localfilebuffer, "%s", localfilename);
+    log_msg("SCPREAD:Local file path: %s \n", localfilebuffer);
+    log_msg("SCPREAD:Remote file path: %s \n", remoteuribuffer);
+
 
     curl = curl_easy_init();
     FILE *fp = fopen(localfilebuffer, "wb");
@@ -25,13 +32,13 @@ int scpreadf(char *remotefileuri, char *localfilename)
         res = curl_easy_perform(curl);
         /* Check for errors */
         if (res != CURLE_OK){
-            fprintf(stderr, "curl_easy_perform() failed: %s\n",
+            log_msg("curl_easy_perform() failed: %s\n",
                     curl_easy_strerror(res));
             return -1;
         }
         else
         {
-            printf("Successful!");
+            log_msg("SCPREAD:Successful!");
         }
 
         /* always cleanup */
@@ -44,9 +51,10 @@ int scpreadf(char *remotefileuri, char *localfilename)
     }
 }
 
+#ifdef REMOTESCPDEBUG
 int main(void)
 {   
-    scpreadf("scp://asmita@master0/etc/hosts","asmijunk");
+    scpreadf("scp://asmita@master0/etc/hosts","/tmp/asmijunk");
 
     /*
     CURL *curl;
@@ -75,3 +83,4 @@ int main(void)
 
     return 0;
 }
+#endif
