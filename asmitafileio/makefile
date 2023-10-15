@@ -15,15 +15,15 @@ clean:
 
 asmitafs: asmitaapp
 	make mountasmitafs
-	echo "Asmita app " > /home/asmita/OSLab3/asmitafileio/localroot/foo
-	cd /home/asmita/OSLab3/asmitafileio/mountdir; ../asmitaapp
+	echo "Asmita app " > /home/asmita/OSLab2/asmitafileio/localroot/foo
+	cd /home/asmita/OSLab2/asmitafileio/mountdir; ../asmitaapp
 
 mountasmitafs:
-	rm -f /home/asmita/OSLab3/asmitafileio/bbfs.log
-	/home/asmita/OSLab3/asmitafileio/asmfs /home/asmita/OSLab3/asmitafileio/localroot babs 192.168.10.223 /home/asmita/OSLab3/asmitafileio/mountdir
+	rm -f /home/asmita/OSLab2/asmitafileio/bbfs.log
+	/home/asmita/OSLab2/asmitafileio/asmfs nandihill 192.168.10.223 /home/asmita/OSLab2/asmitafileio/localroot /home/asmita/OSLab2/asmitafileio/mountdir
 	
 unmountasmitafs:
-	fusermount -u /home/asmita/OSLab3/asmitafileio/mountdir
+	fusermount -u /home/asmita/OSLab2/asmitafileio/mountdir
 
 bbfs: bbfs.o log.o
 	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2   -o bbfs bbfs.o log.o -lfuse -pthread
