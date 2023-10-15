@@ -327,20 +327,20 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 
 
 
+	/*
     fd = log_syscall("open", open(fpath, fi->flags), 0);
     if (fd < 0)
         retstat = log_error("open");
 
     fi->fh = fd;
+	*/
 
 
-	/*
     fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
     if (fdtemp < 0)
         retstat = log_error("open");
 
     fi->fh = fdtemp;
-	*/
 
     log_fi(fi);
 
