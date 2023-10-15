@@ -475,9 +475,35 @@ int bb_release(const char *path, struct fuse_file_info *fi)
             path, fi);
     log_fi(fi);
 
+
+
+	fsync(fi->fh);
+
+	int retvalue = log_syscall("close", close(fi->fh), 0 );
+
+	char rmcmd[300];
+	char fullremoteuri[5000];
+	char pathintemp[5000];
+	char *uptr = fullremoteuri ;
+	char *tptr = pathintemp ;
+
+
+    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", BB_DATA->remoteIP,BB_DATA->remotehostname, path);
+
+    sprintf(pathintemp, "/tmp%s", path);
+	scpwritef(tptr,uptr);
+
+	sprintf(rmcmd,"rm -f /tmp%s",path);
+	log_msg("\nBBRELEASE rmcmd %s",rmcmd);
+	system(rmcmd);
+	
+
+
+
+
     // We need to close the file.  Had we allocated any resources
     // (buffers etc) we'd need to free them here as well.
-    return log_syscall("close", close(fi->fh), 0);
+    return retvalue ;
 }
 
 /** Synchronize file contents
