@@ -1,0 +1,11 @@
+*.o
+asmfs
+asmitaapp
+asmitaremotetest
+bbfs
+remotescp
+localroot/*
+mountdir/*
+asmfs.log
+bbfs.log
+localroot/foo
