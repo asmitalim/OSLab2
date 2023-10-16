@@ -39,9 +39,9 @@ asmitaremotefs: asmitaremotetest
 	echo "asmitaremotefs"
 	make mountasmfs
 	echo "User Message coming from local machine" > ./localroot/foo
-	echo "User Message coming from remote machine" > /tmp/remotejunk
-	scp /tmp/remotejunk "${ASMFS_USER}@${ASMFS_HOST}:~/asmfsexports/foo"
-	rm -f /tmp/remotejunk
+	#echo "User Message coming from remote machine" > /tmp/remotejunk
+	#scp /tmp/remotejunk "${ASMFS_USER}@${ASMFS_HOST}:~/asmfsexports/foo"
+	#rm -f /tmp/remotejunk
 	cd ./mountdir; ../asmitaremotetest
 
 
