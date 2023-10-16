@@ -8,6 +8,12 @@ all: asmitaapp bbfs asmfs asmitaremotetest remotescp
 	@echo "Asmita app is built"
     
 
+codingstyle:
+	astyle --style=linux asmitaremotetest.c
+	astyle --style=linux asmfs.c
+	astyle --style=linux asmitapp.c
+	astyle --style=linux remotescp.c
+
 
 asmitaapp: asmitaapp.o 
 	echo "asmitaapp"

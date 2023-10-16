@@ -59,25 +59,55 @@ static void bb_fullpath(char fpath[PATH_MAX], const char *path)
             BB_DATA->rootdir, path, fpath);
 }
 
-///////////////////////////////////////////////////////////
-//
-// Prototypes for all these functions, and the C-style comments,
-// come from /usr/include/fuse.h
-//
-/** Get file attributes.
- *
- * Similar to stat().  The 'st_dev' and 'st_blksize' fields are
- * ignored.  The 'st_ino' field is ignored except if the 'use_ino'
- * mount option is given.
- */
-int bb_getattr(const char *path, struct stat *statbuf)
+
+
+
+
+
+int asmfs_getattr(const char *path, struct stat *statbuf)
 {
     int retstat;
     char fpath[PATH_MAX];
 
-    log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
+    log_msg("\nasmfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
             path, statbuf);
     bb_fullpath(fpath, path);
+
+	statbuf -> st_uid = getuid() ;
+	statbuf -> st_gid = getgid() ;
+	statbuf -> st_atime = time(NULL) ;
+	statbuf -> st_mtime = time(NULL) ;
+
+	if( strcmp(path, "/") == 0 ) {
+
+		statbuf -> st_mode = S_IFDIR | 0755 ; 
+		statbuf -> st_nlink  = 2 ;
+		return 0 ;
+
+	} else if ( strcmp(path, "/asmfsinfo.txt") == 0 ) {
+		statbuf -> st_mode = S_IFREG | 0644 ; 
+		statbuf -> st_nlink  = 1 ;
+		statbuf -> st_size = 1024 ; 
+		return 0 ;
+
+	} else if ( strcmp(path, "/OSLab2-utaustin") == 0 ) {
+		statbuf -> st_mode = S_IFDIR | 0755 ; 
+		statbuf -> st_nlink  = 1 ;
+		return 0 ;
+
+	} else if ( strcmp(path, "/foo1") == 0 ) {
+
+		statbuf -> st_mode = S_IFREG | 0644 ; 
+		statbuf -> st_nlink  = 1 ;
+		statbuf -> st_size = 1024 ; 
+
+    	retstat = log_syscall("lstat", lstat("/tmp/foo1", statbuf), 0);
+    	return retstat;
+
+	} else {
+    	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
+    	return retstat;
+	}
 
     retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
 
@@ -99,6 +129,11 @@ int bb_getattr(const char *path, struct stat *statbuf)
 // null.  So, the size passed to to the system readlink() must be one
 // less than the size passed to bb_readlink()
 // bb_readlink() code by Bernardo F Costa (thanks!)
+
+
+
+
+
 int bb_readlink(const char *path, char *link, size_t size)
 {
     int retstat;
@@ -119,12 +154,14 @@ int bb_readlink(const char *path, char *link, size_t size)
     return retstat;
 }
 
-/** Create a file node
- *
- * There is no create() operation, mknod() will be called for
- * creation of all non-directory, non-symlink nodes.
- */
-// shouldn't that comment be "if" there is no.... ?
+
+
+
+
+
+
+
+
 int bb_mknod(const char *path, mode_t mode, dev_t dev)
 {
     int retstat;
@@ -134,11 +171,6 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
             path, mode, dev);
     bb_fullpath(fpath, path);
 
-    // On Linux this could just be 'mknod(path, mode, dev)' but this
-    // tries to be be more portable by honoring the quote in the Linux
-    // mknod man page stating the only portable use of mknod() is to
-    // make a fifo, but saying it should never actually be used for
-    // that.
     if (S_ISREG(mode))
     {
         retstat = log_syscall("open", open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode), 0);
@@ -363,14 +395,55 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 // can return with anything up to the amount of data requested. nor
 // with the fusexmp code which returns the amount of data also
 // returned by read.
-int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
+int asmfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
+	int bytesRemaining =0;
+	int actualOffset = offset ; 
 
-    log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+	char *asmfsInfo  =  "This is the builtin information file of asmfs... Lab project 2" ;
+	char *goodMorningInfo  =  "Good Morning every one " ; 
+	char *info = ""  ;
+
+
+    log_msg("\nasmfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
-    // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
+
+
+		/* 
+		read for following files implemented ( foo comes from remote machine )
+
+		"foo"
+		"asmfsinfo.txt"
+		"OSLab2-utaustin"
+		*/
+
+
+	if( strcmp(path, "/asmfsinfo.txt") == 0 ) {
+		info = asmfsInfo ; 
+		memcpy(buf, info+offset, size);
+		return strlen(info) - offset ;
+		
+ 	}
+    else if ( strcmp( path, "/OSLab2-utaustin") == 0 ) {
+		info = goodMorningInfo ;
+		memcpy(buf, info+offset, size);
+		return strlen(info) - offset ;
+	}
+	else if ( strcmp(path, "/foo") == 0 ) {
+		log_msg(" special processing for reading foo");
+
+
+	} else
+		return -1 ;
+
+
+	/* foo file */
+
+
+
+
 
     return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 }
@@ -469,9 +542,9 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
  *
  * Changed in version 2.2
  */
-int bb_release(const char *path, struct fuse_file_info *fi)
+int asmfs_release(const char *path, struct fuse_file_info *fi)
 {
-    log_msg("\nbb_release(path=\"%s\", fi=0x%08x)\n",
+    log_msg("\nasmfs_release(path=\"%s\", fi=0x%08x)\n",
             path, fi);
     log_fi(fi);
 
@@ -656,27 +729,36 @@ int bb_opendir(const char *path, struct fuse_file_info *fi)
  * Introduced in version 2.3
  */
 
-int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
+int asmfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
                struct fuse_file_info *fi)
 {
     int retstat = 0;
     DIR *dp;
     struct dirent *de;
 
-    log_msg("\nbb_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
+    log_msg("\nasmfs_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
             path, buf, filler, offset, fi);
+
+
     // once again, no need for fullpath -- but note that I need to cast fi->fh
+
+
+
     dp = (DIR *)(uintptr_t)fi->fh;
 
     // Every directory contains at least two entries: . and ..  If my
     // first call to the system readdir() returns NULL I've got an
     // error; near as I can tell, that's the only condition under
     // which I can get an error from readdir()
+
+
     de = readdir(dp);
     log_msg("    readdir returned 0x%p\n", de);
+
+
     if (de == 0)
     {
-        retstat = log_error("bb_readdir readdir");
+        retstat = log_error("asmfs_readdir readdir");
         return retstat;
     }
 
@@ -684,12 +766,37 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
     // when either the system readdir() returns NULL, or filler()
     // returns something non-zero.  The first case just means I've
     // read the whole directory; the second means the buffer is full.
+
+
+
+	log_msg("....asmfs getting the directory entries need to mask these .....\n");
+
+
+	filler(buf,".", NULL, 0);
+	filler(buf,"..", NULL, 0);
+
+
+	if (strcmp(path, "/") == 0) {
+		filler(buf,"foo", NULL, 0);
+		filler(buf,"asmfsinfo.txt",NULL,0);
+		filler(buf,"OSLab2-utaustin",NULL,0);
+	}
+
+
+    log_fi(fi);
+
+	return 0 ;
+
+
+	/*
+
+
     do
     {
         log_msg("calling filler with name %s\n", de->d_name);
         if (filler(buf, de->d_name, NULL, 0) != 0)
         {
-            log_msg("    ERROR bb_readdir filler:  buffer full");
+            log_msg("    ERROR asmfs_readdir filler:  buffer full");
             return -ENOMEM;
         }
     } while ((de = readdir(dp)) != NULL);
@@ -697,6 +804,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
     log_fi(fi);
 
     return retstat;
+	*/
 }
 
 /** Release directory
@@ -753,9 +861,9 @@ int bb_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi)
 // parameter coming in here, or else the fact should be documented
 // (and this might as well return void, as it did in older versions of
 // FUSE).
-void *bb_init(struct fuse_conn_info *conn)
+void *asmfs_init(struct fuse_conn_info *conn)
 {
-    log_msg("\nbb_init()\n");
+    log_msg("\nasmfs_init()\n");
 
     log_conn(conn);
     log_fuse_context(fuse_get_context());
@@ -870,7 +978,7 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
     // special case of a path of "/", I need to do a getattr on the
     // underlying root directory instead of doing the fgetattr().
     if (!strcmp(path, "/"))
-        return bb_getattr(path, statbuf);
+        return asmfs_getattr(path, statbuf);
 
     retstat = fstat(fi->fh, statbuf);
     if (retstat < 0)
@@ -882,7 +990,7 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
 }
 
 struct fuse_operations bb_oper = {
-    .getattr = bb_getattr,
+    .getattr = asmfs_getattr,
     .readlink = bb_readlink,
     // no .getdir -- that's deprecated
     .getdir = NULL,
@@ -898,12 +1006,12 @@ struct fuse_operations bb_oper = {
     .truncate = bb_truncate,
     .utime = bb_utime,
     .open = bb_open,
-    .read = bb_read,
+    .read = asmfs_read,
     .write = bb_write,
     /** Just a placeholder, don't set */ // huh???
     .statfs = bb_statfs,
     .flush = bb_flush,
-    .release = bb_release,
+    .release = asmfs_release,
     .fsync = bb_fsync,
 
 #ifdef HAVE_SYS_XATTR_H
@@ -914,10 +1022,10 @@ struct fuse_operations bb_oper = {
 #endif
 
     .opendir = bb_opendir,
-    .readdir = bb_readdir,
+    .readdir = asmfs_readdir,
     .releasedir = bb_releasedir,
     .fsyncdir = bb_fsyncdir,
-    .init = bb_init,
+    .init = asmfs_init,
     .destroy = bb_destroy,
     .access = bb_access,
     .ftruncate = bb_ftruncate,
