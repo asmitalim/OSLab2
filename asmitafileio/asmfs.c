@@ -1,4 +1,9 @@
 /*
+
+
+	This file is derived from the the Big Brother File System, a template and logs are reused
+	from this file. 
+
   Big Brother File System
   Copyright (C) 2012 Joseph J. Pfeiffer, Jr., Ph.D. <pfeiffer@cs.nmsu.edu>
 
@@ -44,19 +49,16 @@
 #include "log.h"
 #include "remotescp.h"
 
-//  All the paths I see are relative to the root of the mounted
-//  filesystem.  In order to get to the underlying filesystem, I need to
-//  have the mountpoint.  I'll save it away early on in main(), and then
-//  whenever I need a path for something I'll call this to construct
-//  it.
-static void bb_fullpath(char fpath[PATH_MAX], const char *path)
-{
-    strcpy(fpath, BB_DATA->rootdir);
-    strncat(fpath, path, PATH_MAX); // ridiculously long paths will
-                                    // break here
 
-    log_msg("    bb_fullpath:  rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
-            BB_DATA->rootdir, path, fpath);
+
+
+static void relativeToAbsolute(char fpath[PATH_MAX], const char *path)
+{
+    strcpy(fpath, PRIVATE_DATA->rootdir);
+    strncat(fpath, path, PATH_MAX);
+
+    log_msg("    relativeToAbsolute:  rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
+            PRIVATE_DATA->rootdir, path, fpath);
 }
 
 
@@ -71,47 +73,47 @@ int asmfs_getattr(const char *path, struct stat *statbuf)
 
     log_msg("\nasmfs_getattr(path=\"%s\", statbuf=0x%08x)\n",
             path, statbuf);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
-	statbuf -> st_uid = getuid() ;
-	statbuf -> st_gid = getgid() ;
-	statbuf -> st_atime = time(NULL) ;
-	statbuf -> st_mtime = time(NULL) ;
+    statbuf -> st_uid = getuid() ;
+    statbuf -> st_gid = getgid() ;
+    statbuf -> st_atime = time(NULL) ;
+    statbuf -> st_mtime = time(NULL) ;
 
-	if( strcmp(path, "/") == 0 ) {
+    if( strcmp(path, "/") == 0 ) {
 
-		statbuf -> st_mode = S_IFDIR | 0755 ; 
-		statbuf -> st_nlink  = 2 ;
-		return 0 ;
+        statbuf -> st_mode = S_IFDIR | 0755 ;
+        statbuf -> st_nlink  = 2 ;
+        return 0 ;
 
-	} else if ( strcmp(path, "/asmfsinfo.txt") == 0 ) {
-		statbuf -> st_mode = S_IFREG | 0644 ; 
-		statbuf -> st_nlink  = 1 ;
-		statbuf -> st_size = 1024 ; 
-		return 0 ;
+    } else if ( strcmp(path, "/asmfsinfo.txt") == 0 ) {
+        statbuf -> st_mode = S_IFREG | 0644 ;
+        statbuf -> st_nlink  = 1 ;
+        statbuf -> st_size = 1024 ;
+        return 0 ;
 
-	} else if ( strcmp(path, "/OSLab2-utaustin") == 0 ) {
-		statbuf -> st_mode = S_IFDIR | 0755 ; 
-		statbuf -> st_nlink  = 1 ;
-		return 0 ;
+    } else if ( strcmp(path, "/OSLab2-utaustin") == 0 ) {
+        statbuf -> st_mode = S_IFDIR | 0755 ;
+        statbuf -> st_nlink  = 1 ;
+        return 0 ;
 
-	} else if ( strcmp(path, "/foo1") == 0 ) {
+    } else if ( strcmp(path, "/foo1") == 0 ) {
 
-		statbuf -> st_mode = S_IFREG | 0644 ; 
-		statbuf -> st_nlink  = 1 ;
-		statbuf -> st_size = 1024 ; 
+        statbuf -> st_mode = S_IFREG | 0644 ;
+        statbuf -> st_nlink  = 1 ;
+        statbuf -> st_size = 1024 ;
 
-    	retstat = log_syscall("lstat", lstat("/tmp/foo1", statbuf), 0);
-    	return retstat;
+        retstat = log_syscall("lstat", lstat("/tmp/foo1", statbuf), 0);
+        return retstat;
 
-	} else {
-    	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
-    	return retstat;
-	}
+    } else {
+        retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
+        return retstat;
+    }
 
     retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
 
-	// TODO 
+    // TODO
     //log_stat(statbuf);
 
     return retstat;
@@ -141,11 +143,10 @@ int bb_readlink(const char *path, char *link, size_t size)
 
     log_msg("\nbb_readlink(path=\"%s\", link=\"%s\", size=%d)\n",
             path, link, size);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     retstat = log_syscall("readlink", readlink(fpath, link, size - 1), 0);
-    if (retstat >= 0)
-    {
+    if (retstat >= 0) {
         link[retstat] = '\0';
         retstat = 0;
         log_msg("    link=\"%s\"\n", link);
@@ -162,28 +163,30 @@ int bb_readlink(const char *path, char *link, size_t size)
 
 
 
-int bb_mknod(const char *path, mode_t mode, dev_t dev)
+int asmfs_mknod(const char *path, mode_t mode, dev_t dev)
 {
     int retstat;
     char fpath[PATH_MAX];
 
-    log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n",
+    log_msg("\nasmfs_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n",
             path, mode, dev);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
-    if (S_ISREG(mode))
-    {
+    if (S_ISREG(mode)) {
         retstat = log_syscall("open", open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode), 0);
         if (retstat >= 0)
             retstat = log_syscall("close", close(retstat), 0);
-    }
-    else if (S_ISFIFO(mode))
+    } else if (S_ISFIFO(mode))
         retstat = log_syscall("mkfifo", mkfifo(fpath, mode), 0);
     else
         retstat = log_syscall("mknod", mknod(fpath, mode, dev), 0);
 
     return retstat;
 }
+
+
+
+
 
 /** Create a directory */
 int bb_mkdir(const char *path, mode_t mode)
@@ -192,53 +195,78 @@ int bb_mkdir(const char *path, mode_t mode)
 
     log_msg("\nbb_mkdir(path=\"%s\", mode=0%3o)\n",
             path, mode);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("mkdir", mkdir(fpath, mode), 0);
 }
 
-/** Remove a file */
+
+
+
+
+
+
+
+
 int bb_unlink(const char *path)
 {
     char fpath[PATH_MAX];
 
     log_msg("bb_unlink(path=\"%s\")\n",
             path);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("unlink", unlink(fpath), 0);
 }
 
-/** Remove a directory */
+
+
+
+
+
+
+
+
 int bb_rmdir(const char *path)
 {
     char fpath[PATH_MAX];
 
     log_msg("bb_rmdir(path=\"%s\")\n",
             path);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("rmdir", rmdir(fpath), 0);
 }
 
-/** Create a symbolic link */
-// The parameters here are a little bit confusing, but do correspond
-// to the symlink() system call.  The 'path' is where the link points,
-// while the 'link' is the link itself.  So we need to leave the path
-// unaltered, but insert the link into the mounted directory.
+
+
+
+
+
+
+
+/* 
+** Create a symbolic link 
+*/
+
+// similar to symlink system call - symbolic link <link> Points to <path>
+
 int bb_symlink(const char *path, const char *link)
 {
     char flink[PATH_MAX];
 
-    log_msg("\nbb_symlink(path=\"%s\", link=\"%s\")\n",
-            path, link);
-    bb_fullpath(flink, link);
+    log_msg("\nbb_symlink(path=\"%s\", link=\"%s\")\n", path, link);
+
+    relativeToAbsolute(flink, link);
 
     return log_syscall("symlink", symlink(path, flink), 0);
 }
 
 /** Rename a file */
-// both path and newpath are fs-relative
+// both  paths are relative to mountpoint root
+// rename oldname:<path> to newname:<newpath>
+
+
 int bb_rename(const char *path, const char *newpath)
 {
     char fpath[PATH_MAX];
@@ -246,38 +274,56 @@ int bb_rename(const char *path, const char *newpath)
 
     log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n",
             path, newpath);
-    bb_fullpath(fpath, path);
-    bb_fullpath(fnewpath, newpath);
+
+    relativeToAbsolute(fpath, path);
+    relativeToAbsolute(fnewpath, newpath);
 
     return log_syscall("rename", rename(fpath, fnewpath), 0);
 }
 
+
+
+
+
+
+
+
+
 /** Create a hard link to a file */
+// similar to link system call - hardlink newpath:<link> Pointsto:<path>
+
+
 int bb_link(const char *path, const char *newpath)
 {
     char fpath[PATH_MAX], fnewpath[PATH_MAX];
 
     log_msg("\nbb_link(path=\"%s\", newpath=\"%s\")\n",
             path, newpath);
-    bb_fullpath(fpath, path);
-    bb_fullpath(fnewpath, newpath);
+
+    relativeToAbsolute(fpath, path);
+    relativeToAbsolute(fnewpath, newpath);
 
     return log_syscall("link", link(fpath, fnewpath), 0);
 }
 
-/** Change the permission bits of a file */
+
+
+
+
 int bb_chmod(const char *path, mode_t mode)
 {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_chmod(fpath=\"%s\", mode=0%03o)\n",
             path, mode);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("chmod", chmod(fpath, mode), 0);
 }
 
-/** Change the owner and group of a file */
+
+
+
 int bb_chown(const char *path, uid_t uid, gid_t gid)
 
 {
@@ -285,10 +331,14 @@ int bb_chown(const char *path, uid_t uid, gid_t gid)
 
     log_msg("\nbb_chown(path=\"%s\", uid=%d, gid=%d)\n",
             path, uid, gid);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("chown", chown(fpath, uid, gid), 0);
 }
+
+
+
+
 
 /** Change the size of a file */
 int bb_truncate(const char *path, off_t newsize)
@@ -297,34 +347,34 @@ int bb_truncate(const char *path, off_t newsize)
 
     log_msg("\nbb_truncate(path=\"%s\", newsize=%lld)\n",
             path, newsize);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("truncate", truncate(fpath, newsize), 0);
 }
 
-/** Change the access and/or modification times of a file */
-/* note -- I'll want to change this as soon as 2.6 is in debian testing */
+
+
+
+
+
 int bb_utime(const char *path, struct utimbuf *ubuf)
 {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_utime(path=\"%s\", ubuf=0x%08x)\n",
             path, ubuf);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("utime", utime(fpath, ubuf), 0);
 }
 
-/** File open operation
- *
- * No creation, or truncation flags (O_CREAT, O_EXCL, O_TRUNC)
- * will be passed to open().  Open should check if the operation
- * is permitted for the given flags.  Optionally open may also
- * return an arbitrary filehandle in the fuse_file_info structure,
- * which will be passed to all file operations.
- *
- * Changed in version 2.2
- */
+
+
+
+
+
+
+
 int bb_open(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
@@ -341,15 +391,15 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 
     log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n", path, fi);
 
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     //TODO: change this later
 
 
-    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", BB_DATA->remoteIP,BB_DATA->remotehostname, path);
+    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", PRIVATE_DATA->remoteUser,PRIVATE_DATA->remotehostname, path);
 
     sprintf(pathintemp, "/tmp%s", path);
-	scpreadf(uptr,tptr);
+    scpreadf(uptr,tptr);
 
 
 
@@ -359,13 +409,13 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 
 
 
-	/*
+    /*
     fd = log_syscall("open", open(fpath, fi->flags), 0);
     if (fd < 0)
         retstat = log_error("open");
 
     fi->fh = fd;
-	*/
+    */
 
 
     fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
@@ -379,31 +429,24 @@ int bb_open(const char *path, struct fuse_file_info *fi)
     return retstat;
 }
 
-/** Read data from an open file
- *
- * Read should return exactly the number of bytes requested except
- * on EOF or error, otherwise the rest of the data will be
- * substituted with zeroes.  An exception to this is when the
- * 'direct_io' mount option is specified, in which case the return
- * value of the read system call will reflect the return value of
- * this operation.
- *
- * Changed in version 2.2
- */
-// I don't fully understand the documentation above -- it doesn't
-// match the documentation for the read() system call which says it
-// can return with anything up to the amount of data requested. nor
-// with the fusexmp code which returns the amount of data also
-// returned by read.
+
+
+
+
+
+
+
+
+
 int asmfs_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
-	int bytesRemaining =0;
-	int actualOffset = offset ; 
+    int bytesRemaining =0;
+    int actualOffset = offset ;
 
-	char *asmfsInfo  =  "This is the builtin information file of asmfs... Lab project 2" ;
-	char *goodMorningInfo  =  "Good Morning every one " ; 
-	char *info = ""  ;
+    char *asmfsInfo  =  "This is the builtin information file of asmfs... Lab project 2" ;
+    char *goodMorningInfo  =  "Good Morning every one " ;
+    char *info = ""  ;
 
 
     log_msg("\nasmfs_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
@@ -411,35 +454,33 @@ int asmfs_read(const char *path, char *buf, size_t size, off_t offset, struct fu
     log_fi(fi);
 
 
-		/* 
-		read for following files implemented ( foo comes from remote machine )
+    /*
+    read for following files implemented ( foo comes from remote machine )
 
-		"foo"
-		"asmfsinfo.txt"
-		"OSLab2-utaustin"
-		*/
-
-
-	if( strcmp(path, "/asmfsinfo.txt") == 0 ) {
-		info = asmfsInfo ; 
-		memcpy(buf, info+offset, size);
-		return strlen(info) - offset ;
-		
- 	}
-    else if ( strcmp( path, "/OSLab2-utaustin") == 0 ) {
-		info = goodMorningInfo ;
-		memcpy(buf, info+offset, size);
-		return strlen(info) - offset ;
-	}
-	else if ( strcmp(path, "/foo") == 0 ) {
-		log_msg(" special processing for reading foo");
+    "foo"
+    "asmfsinfo.txt"
+    "OSLab2-utaustin"
+    */
 
 
-	} else
-		return -1 ;
+    if( strcmp(path, "/asmfsinfo.txt") == 0 ) {
+        info = asmfsInfo ;
+        memcpy(buf, info+offset, size);
+        return strlen(info) - offset ;
+
+    } else if ( strcmp( path, "/OSLab2-utaustin") == 0 ) {
+        info = goodMorningInfo ;
+        memcpy(buf, info+offset, size);
+        return strlen(info) - offset ;
+    } else if ( strcmp(path, "/foo") == 0 ) {
+        log_msg(" special processing for reading foo");
 
 
-	/* foo file */
+    } else
+        return -1 ;
+
+
+    /* foo file */
 
 
 
@@ -448,16 +489,6 @@ int asmfs_read(const char *path, char *buf, size_t size, off_t offset, struct fu
     return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 }
 
-/** Write data to an open file
- *
- * Write should return exactly the number of bytes requested
- * except on error.  An exception to this is when the 'direct_io'
- * mount option is specified (see read operation).
- *
- * Changed in version 2.2
- */
-// As  with read(), the documentation above is inconsistent with the
-// documentation for the write() system call.
 int bb_write(const char *path, const char *buf, size_t size, off_t offset,
              struct fuse_file_info *fi)
 {
@@ -471,13 +502,21 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
     return log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
 }
 
-/** Get file system statistics
- *
- * The 'f_frsize', 'f_favail', 'f_fsid' and 'f_flag' fields are ignored
- *
- * Replaced 'struct statfs' parameter with 'struct statvfs' in
- * version 2.5
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 int bb_statfs(const char *path, struct statvfs *statv)
 {
     int retstat = 0;
@@ -485,7 +524,7 @@ int bb_statfs(const char *path, struct statvfs *statv)
 
     log_msg("\nbb_statfs(path=\"%s\", statv=0x%08x)\n",
             path, statv);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     // get stats for underlying filesystem
     retstat = log_syscall("statvfs", statvfs(fpath, statv), 0);
@@ -519,6 +558,9 @@ int bb_statfs(const char *path, struct statvfs *statv)
  * Changed in version 2.2
  */
 // this is a no-op in BBFS.  It just logs the call and returns success
+
+
+
 int bb_flush(const char *path, struct fuse_file_info *fi)
 {
     log_msg("\nbb_flush(path=\"%s\", fi=0x%08x)\n", path, fi);
@@ -528,20 +570,14 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
     return 0;
 }
 
-/** Release an open file
- *
- * Release is called when there are no more references to an open
- * file: all file descriptors are closed and all memory mappings
- * are unmapped.
- *
- * For every open() call there will be exactly one release() call
- * with the same flags and file descriptor.  It is possible to
- * have a file opened more than once, in which case only the last
- * release will mean, that no more reads/writes will happen on the
- * file.  The return value of release is ignored.
- *
- * Changed in version 2.2
- */
+
+
+
+
+
+
+
+
 int asmfs_release(const char *path, struct fuse_file_info *fi)
 {
     log_msg("\nasmfs_release(path=\"%s\", fi=0x%08x)\n",
@@ -550,42 +586,39 @@ int asmfs_release(const char *path, struct fuse_file_info *fi)
 
 
 
-	fsync(fi->fh);
+    fsync(fi->fh);
 
-	int retvalue = log_syscall("close", close(fi->fh), 0 );
+    int retvalue = log_syscall("close", close(fi->fh), 0 );
 
-	char rmcmd[300];
-	char fullremoteuri[5000];
-	char pathintemp[5000];
-	char *uptr = fullremoteuri ;
-	char *tptr = pathintemp ;
+    char rmcmd[300];
+    char fullremoteuri[5000];
+    char pathintemp[5000];
+    char *uptr = fullremoteuri ;
+    char *tptr = pathintemp ;
 
 
-    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", BB_DATA->remoteIP,BB_DATA->remotehostname, path);
+    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", PRIVATE_DATA->remoteUser,PRIVATE_DATA->remotehostname, path);
 
     sprintf(pathintemp, "/tmp%s", path);
-	scpwritef(tptr,uptr);
+    scpwritef(tptr,uptr);
 
-	sprintf(rmcmd,"rm -f /tmp%s",path);
-	log_msg("\nBBRELEASE rmcmd %s",rmcmd);
-	system(rmcmd);
-	
-
+    sprintf(rmcmd,"rm -f /tmp%s",path);
+    log_msg("\nBBRELEASE rmcmd %s",rmcmd);
+    system(rmcmd);
 
 
 
-    // We need to close the file.  Had we allocated any resources
-    // (buffers etc) we'd need to free them here as well.
+
+
     return retvalue ;
 }
 
-/** Synchronize file contents
- *
- * If the datasync parameter is non-zero, then only the user data
- * should be flushed, not the meta data.
- *
- * Changed in version 2.2
- */
+
+
+
+
+
+
 int bb_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 {
     log_msg("\nbb_fsync(path=\"%s\", datasync=%d, fi=0x%08x)\n",
@@ -600,6 +633,11 @@ int bb_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 #endif
         return log_syscall("fsync", fsync(fi->fh), 0);
 }
+
+
+
+
+
 
 #ifdef HAVE_SYS_XATTR_H
 /** Note that my implementations of the various xattr functions use
@@ -616,7 +654,7 @@ int bb_setxattr(const char *path, const char *name, const char *value, size_t si
 
     log_msg("\nbb_setxattr(path=\"%s\", name=\"%s\", value=\"%s\", size=%d, flags=0x%08x)\n",
             path, name, value, size, flags);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("lsetxattr", lsetxattr(fpath, name, value, size, flags), 0);
 }
@@ -629,7 +667,7 @@ int bb_getxattr(const char *path, const char *name, char *value, size_t size)
 
     log_msg("\nbb_getxattr(path = \"%s\", name = \"%s\", value = 0x%08x, size = %d)\n",
             path, name, value, size);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     retstat = log_syscall("lgetxattr", lgetxattr(fpath, name, value, size), 0);
     if (retstat >= 0)
@@ -647,11 +685,10 @@ int bb_listxattr(const char *path, char *list, size_t size)
 
     log_msg("\nbb_listxattr(path=\"%s\", list=0x%08x, size=%d)\n",
             path, list, size);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     retstat = log_syscall("llistxattr", llistxattr(fpath, list, size), 0);
-    if (retstat >= 0)
-    {
+    if (retstat >= 0) {
         log_msg("    returned attributes (length %d):\n", retstat);
         if (list != NULL)
             for (ptr = list; ptr < list + retstat; ptr += strlen(ptr) + 1)
@@ -670,19 +707,39 @@ int bb_removexattr(const char *path, const char *name)
 
     log_msg("\nbb_removexattr(path=\"%s\", name=\"%s\")\n",
             path, name);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     return log_syscall("lremovexattr", lremovexattr(fpath, name), 0);
 }
 #endif
 
-/** Open directory
- *
- * This method should check if the open operation is permitted for
- * this  directory
- *
- * Introduced in version 2.3
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 int bb_opendir(const char *path, struct fuse_file_info *fi)
 {
     DIR *dp;
@@ -691,7 +748,7 @@ int bb_opendir(const char *path, struct fuse_file_info *fi)
 
     log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n",
             path, fi);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     // since opendir returns a pointer, takes some custom handling of
     // return status.
@@ -707,30 +764,18 @@ int bb_opendir(const char *path, struct fuse_file_info *fi)
     return retstat;
 }
 
-/** Read directory
- *
- * This supersedes the old getdir() interface.  New applications
- * should use this.
- *
- * The filesystem may choose between two modes of operation:
- *
- * 1) The readdir implementation ignores the offset parameter, and
- * passes zero to the filler function's offset.  The filler
- * function will not return '1' (unless an error happens), so the
- * whole directory is read in a single readdir operation.  This
- * works just like the old getdir() method.
- *
- * 2) The readdir implementation keeps track of the offsets of the
- * directory entries.  It uses the offset parameter and always
- * passes non-zero offset to the filler function.  When the buffer
- * is full (or an error happens) the filler function will return
- * '1'.
- *
- * Introduced in version 2.3
- */
+
+
+
+
+
+
+
+
+
 
 int asmfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
-               struct fuse_file_info *fi)
+                  struct fuse_file_info *fi)
 {
     int retstat = 0;
     DIR *dp;
@@ -740,55 +785,37 @@ int asmfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t off
             path, buf, filler, offset, fi);
 
 
-    // once again, no need for fullpath -- but note that I need to cast fi->fh
-
 
 
     dp = (DIR *)(uintptr_t)fi->fh;
-
-    // Every directory contains at least two entries: . and ..  If my
-    // first call to the system readdir() returns NULL I've got an
-    // error; near as I can tell, that's the only condition under
-    // which I can get an error from readdir()
 
 
     de = readdir(dp);
     log_msg("    readdir returned 0x%p\n", de);
 
 
-    if (de == 0)
-    {
+    if (de == 0) {
         retstat = log_error("asmfs_readdir readdir");
         return retstat;
     }
 
-    // This will copy the entire directory into the buffer.  The loop exits
-    // when either the system readdir() returns NULL, or filler()
-    // returns something non-zero.  The first case just means I've
-    // read the whole directory; the second means the buffer is full.
+
+    log_msg("....asmfs getting the directory entries need to mask these .....\n");
 
 
-
-	log_msg("....asmfs getting the directory entries need to mask these .....\n");
-
-
-	filler(buf,".", NULL, 0);
-	filler(buf,"..", NULL, 0);
+#ifdef JUNK
+    filler(buf,".", NULL, 0);
+    filler(buf,"..", NULL, 0);
 
 
-	if (strcmp(path, "/") == 0) {
-		filler(buf,"foo", NULL, 0);
-		filler(buf,"asmfsinfo.txt",NULL,0);
-		filler(buf,"OSLab2-utaustin",NULL,0);
-	}
-
-
+    if (strcmp(path, "/") == 0) {
+        filler(buf,"foo", NULL, 0);
+        filler(buf,"asmfsinfo.txt",NULL,0);
+        filler(buf,"OSLab2-utaustin",NULL,0);
+    }
     log_fi(fi);
-
 	return 0 ;
-
-
-	/*
+#endif
 
 
     do
@@ -804,13 +831,15 @@ int asmfs_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t off
     log_fi(fi);
 
     return retstat;
-	*/
 }
 
-/** Release directory
- *
- * Introduced in version 2.3
- */
+
+
+
+
+
+
+
 int bb_releasedir(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
@@ -824,15 +853,14 @@ int bb_releasedir(const char *path, struct fuse_file_info *fi)
     return retstat;
 }
 
-/** Synchronize directory contents
- *
- * If the datasync parameter is non-zero, then only the user data
- * should be flushed, not the meta data
- *
- * Introduced in version 2.3
- */
-// when exactly is this called?  when a user calls fsync and it
-// happens to be a directory? ??? >>> I need to implement this...
+
+
+
+
+
+
+
+
 int bb_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi)
 {
     int retstat = 0;
@@ -844,56 +872,41 @@ int bb_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi)
     return retstat;
 }
 
-/**
- * Initialize filesystem
- *
- * The return value will passed in the private_data field of
- * fuse_context to all file operations and as a parameter to the
- * destroy() method.
- *
- * Introduced in version 2.3
- * Changed in version 2.6
- */
-// Undocumented but extraordinarily useful fact:  the fuse_context is
-// set up before this function is called, and
-// fuse_get_context()->private_data returns the user_data passed to
-// fuse_main().  Really seems like either it should be a third
-// parameter coming in here, or else the fact should be documented
-// (and this might as well return void, as it did in older versions of
-// FUSE).
+
+
+
+
+
+
+
+
+
+
+
+
+
 void *asmfs_init(struct fuse_conn_info *conn)
 {
     log_msg("\nasmfs_init()\n");
-
     log_conn(conn);
+
     log_fuse_context(fuse_get_context());
 
-    return BB_DATA;
+    return PRIVATE_DATA;
 }
 
-/**
- * Clean up filesystem
- *
- * Called on filesystem exit.
- *
- * Introduced in version 2.3
- */
+
+
 void bb_destroy(void *userdata)
 {
     log_msg("\nbb_destroy(userdata=0x%08x)\n", userdata);
 }
 
-/**
- * Check file access permissions
- *
- * This will be called for the access() system call.  If the
- * 'default_permissions' mount option is given, this method is not
- * called.
- *
- * This method is not called under Linux kernel versions 2.4.x
- *
- * Introduced in version 2.5
- */
+
+
+
+
+
 int bb_access(const char *path, int mask)
 {
     int retstat = 0;
@@ -901,7 +914,7 @@ int bb_access(const char *path, int mask)
 
     log_msg("\nbb_access(path=\"%s\", mask=0%o)\n",
             path, mask);
-    bb_fullpath(fpath, path);
+    relativeToAbsolute(fpath, path);
 
     retstat = access(fpath, mask);
 
@@ -938,6 +951,8 @@ int bb_access(const char *path, int mask)
  *
  * Introduced in version 2.5
  */
+
+
 int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
@@ -953,18 +968,12 @@ int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
     return retstat;
 }
 
-/**
- * Get attributes from an open file
- *
- * This method is called instead of the getattr() method if the
- * file information is available.
- *
- * Currently this is only called after the create() method if that
- * is implemented (see above).  Later it may be called for
- * invocations of fstat() too.
- *
- * Introduced in version 2.5
- */
+
+
+
+
+
+
 int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
 {
     int retstat = 0;
@@ -973,10 +982,6 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
             path, statbuf, fi);
     log_fi(fi);
 
-    // On FreeBSD, trying to do anything with the mountpoint ends up
-    // opening it, and then using the FD for an fgetattr.  So in the
-    // special case of a path of "/", I need to do a getattr on the
-    // underlying root directory instead of doing the fgetattr().
     if (!strcmp(path, "/"))
         return asmfs_getattr(path, statbuf);
 
@@ -989,12 +994,18 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
     return retstat;
 }
 
+
+
+
+
+
+
 struct fuse_operations bb_oper = {
     .getattr = asmfs_getattr,
     .readlink = bb_readlink,
     // no .getdir -- that's deprecated
     .getdir = NULL,
-    .mknod = bb_mknod,
+    .mknod = asmfs_mknod,
     .mkdir = bb_mkdir,
     .unlink = bb_unlink,
     .rmdir = bb_rmdir,
@@ -1029,78 +1040,69 @@ struct fuse_operations bb_oper = {
     .destroy = bb_destroy,
     .access = bb_access,
     .ftruncate = bb_ftruncate,
-    .fgetattr = bb_fgetattr};
+    .fgetattr = bb_fgetattr
+};
 
-void bb_usage()
+
+
+void asmfs_usage()
 {
-    fprintf(stderr, "usage:  bbfs [FUSE and mount options] rootDir mountPoint\n");
+    fprintf(stderr, "Usage:  asmfs remotehostname remoteuser rootDir mountPoint\n");
     abort();
 }
+
+
+
 
 int main(int argc, char *argv[])
 {
     int fuse_stat;
-    struct bb_state *bb_data;
+    struct asmfs_state *priavate_data;
 
-    // bbfs doesn't do any access checking on its own (the comment
-    // blocks in fuse.h mention some of the functions that need
-    // accesses checked -- but note there are other functions, like
-    // chown(), that also need checking!).  Since running bbfs as root
-    // will therefore open Metrodome-sized holes in the system
-    // security, we'll check if root is trying to mount the filesystem
-    // and refuse if it is.  The somewhat smaller hole of an ordinary
-    // user doing it with the allow_other flag is still there because
-    // I don't want to parse the options string.
-    if ((getuid() == 0) || (geteuid() == 0))
-    {
-        fprintf(stderr, "Running BBFS as root opens unnacceptable security holes\n");
+    if ((getuid() == 0) || (geteuid() == 0)) {
+        fprintf(stderr, "can run only as your own uid and gid , root and other users are not supported \n");
         return 1;
     }
 
-    // See which version of fuse we're running
     fprintf(stderr, "Fuse library version %d.%d\n", FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
 
-    // Perform some sanity checking on the command line:  make sure
-    // there are enough arguments, and that neither of the last two
-    // start with a hyphen (this will break if you actually have a
-    // rootpoint or mountpoint whose name starts with a hyphen, but so
-    // will a zillion other programs)
     if ((argc < 5) || (argv[argc - 2][0] == '-') || (argv[argc - 1][0] == '-'))
-        bb_usage();
+        asmfs_usage();
 
-    bb_data = malloc(sizeof(struct bb_state));
-    if (bb_data == NULL)
-    {
+    priavate_data = malloc(sizeof(struct asmfs_state));
+    if (priavate_data == NULL) {
         perror("main calloc");
         abort();
     }
-    //remotehostname remoteip rootdir mountdir
+
+    //remotehostname remoteuser rootdir mountdir
     //argc-4 argc-3 argc-2 argc-1
-    // Pull the rootdir out of the argument list and save it in my
-    // internal data
-    bb_data->rootdir = realpath(argv[argc - 2], NULL);
+
+
+
+    priavate_data->rootdir = realpath(argv[argc - 2], NULL);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;
 
-    sprintf(bb_data->remoteIP, "%s", argv[argc - 2]);
+    sprintf(priavate_data->remoteUser, "%s", argv[argc - 2]);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;
 
-    sprintf(bb_data->remotehostname, "%s", argv[argc - 2]);
+    sprintf(priavate_data->remotehostname, "%s", argv[argc - 2]);
     argv[argc - 2] = argv[argc - 1];
     argv[argc - 1] = NULL;
     argc--;
 
-    bb_data->logfile = log_open();
+    priavate_data->logfile = log_open();
 
 
 
 
     fprintf(stderr, "parameters fuse_main\n");
-    fprintf(stderr, "remoteIP:%s\n", bb_data->remoteIP);
-    fprintf(stderr, "remoteHost:%s\n", bb_data->remotehostname);
+    fprintf(stderr, "remoteUser:%s\n", priavate_data->remoteUser);
+    fprintf(stderr, "remoteHost:%s\n", priavate_data->remotehostname);
 
 
     fprintf(stderr, "argc %d\n", argc);
@@ -1111,7 +1113,7 @@ int main(int argc, char *argv[])
 
     // turn over control to fuse
     fprintf(stderr, "about to call fuse_main\n");
-    fuse_stat = fuse_main(argc, argv, &bb_oper, bb_data);
+    fuse_stat = fuse_main(argc, argv, &bb_oper, priavate_data);
     fprintf(stderr, "fuse_main returned %d\n", fuse_stat);
 
     return fuse_stat;

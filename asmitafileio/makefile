@@ -2,18 +2,23 @@ BUILDHOST=`uname -n`
 MAKE_ASMFS_HOST=${ASMFS_HOST}
 MAKE_ASMFS_USER=${ASMFS_USER}
 
-all: asmitaapp bbfs asmfs asmitaremotetest remotescp
+all: asmitaapp asmfs asmitaremotetest remotescp
 	@echo "............................."
 	@echo "Building on:$(BUILDHOST)"
 	@echo "Asmita app is built"
     
 
 codingstyle:
-	astyle --style=linux asmitaremotetest.c
 	astyle --style=linux asmfs.c
-	astyle --style=linux asmitapp.c
+	astyle --style=linux asmitaapp.c
+	astyle --style=linux asmitaremotetest.c
+	astyle --style=linux bbfs.c
+	astyle --style=linux log.c
+	astyle --style=linux log.h
+	astyle --style=linux remotescp.h
 	astyle --style=linux remotescp.c
-
+	astyle --style=linux config.h
+	astyle --style=linux params.h
 
 asmitaapp: asmitaapp.o 
 	echo "asmitaapp"
@@ -46,7 +51,7 @@ asmitaremotefs: asmitaremotetest
 	make mountasmfs
 	echo "User Message coming from local machine" > ./localroot/foo
 	echo "User Message coming from remote machine" > /tmp/remotejunk
-	scp /tmp/remotejunk "${ASMFS_USER}@${ASMFS_HOST}:~/asmfsexports/foo"
+	#scp /tmp/remotejunk "${ASMFS_USER}@${ASMFS_HOST}:~/asmfsexports/foo"
 	rm -f /tmp/remotejunk
 	cd ./mountdir; ../asmitaremotetest
 

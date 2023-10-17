@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+remotefile=$1
+
+nandihill='ssh -i ~/.ssh/ubiq-stack-nandihills   ubiqadmin@nandihill.centralindia.cloudapp.azure.com'
+$nandihill  "cd asmfsexports;ls -al $remotefile" | sed "s/ \+/,/g" | cut -d',' -f1 | read perm
+echo "Permission = $perm"
