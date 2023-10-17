@@ -40,6 +40,10 @@ int main(void)
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo", "/tmp/foo");
 
 #else
+    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo");
+    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1");
+
+    return 0;
     // scpreadf("scp://asmita@master0/etc/hosts","/tmp/asmijunk");
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com:/etc/hosts", "/tmp/asmijunk");
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo", "/tmp/fooremote");
@@ -219,4 +223,42 @@ int scpwritef(char *localfilename, char *remotefileuri)
     {
         return -1;
     }
+}
+
+int remotestat(char* user, char* host, char* remotefilename)
+{   
+    static char cmd[2000];
+    //char* cmd= "\"cd asmfsexports; ls -al foo | sed \\\"s/ \\\\+/,/g\\\" \" ";
+    sprintf(cmd, "ssh %s@%s \"cd asmfsexports; ls -al %s | sed \\\"s/ \\\\+/ /g\\\" \" 2>&1", user, host, remotefilename);
+    //int retval=system(tmp);
+    FILE* fp=popen(cmd, "r");
+    static char buf[2000];
+    fgets(buf, sizeof(buf),fp);
+    printf("Output is %s", buf);
+    if(strncmp(buf,"ls: cannot access",17)==0)
+    {
+        printf("No file called %s on the remote server \n", remotefilename);
+        pclose(fp);
+        return -1;
+    }
+    //printf("Retval for %s is: %d \n", remotefilename, retval);
+    //return retval;
+    static char retvalues[9][200];
+    sscanf(buf,"%s %s %s %s %s %s %s %s %s",retvalues[0],
+    retvalues[1],
+    retvalues[2],
+    retvalues[3],
+    retvalues[4],
+    retvalues[5],
+    retvalues[6],
+    retvalues[7],
+    retvalues[8]);
+    for(int i=0;i<9;i++)
+    {
+        printf("Value of retvalues %d is %s \n", i, retvalues[i]);
+    }
+
+    pclose(fp);
+    return 0;
+
 }
