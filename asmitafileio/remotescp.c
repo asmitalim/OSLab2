@@ -54,6 +54,13 @@ int main(void)
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo", "/tmp/foo");
 
 #else
+    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo", &statbuff);
+    //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1", &statbuff);
+    remotedir("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+	remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+
+    return 0;
+
     //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo", &statbuff);
     //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1", &statbuff);
 
@@ -284,10 +291,10 @@ int remotestat(char* user, char* host, char* remotefilename,  struct stat *statb
     FILE* fp=popen(cmd, "r");
     static char buf[2000];
     fgets(buf, sizeof(buf),fp);
-    printf("Output is %s", buf);
+    log_msg("Output is %s", buf);
     if(strncmp(buf,"ls: cannot access",17)==0)
     {
-        printf("No file called %s on the remote server \n", remotefilename);
+        log_msg("No file called %s on the remote server \n", remotefilename);
         pclose(fp);
         return -1;
     }
@@ -306,22 +313,22 @@ int remotestat(char* user, char* host, char* remotefilename,  struct stat *statb
     retvalues[8]); //filename
     for(int i=0;i<9;i++)
     {
-        printf("Value of retvalues %d is %s \n", i, retvalues[i]);
+        log_msg("Value of retvalues %d is %s \n", i, retvalues[i]);
     }
 
     pclose(fp);
 
 
 	int rwx = parseMode(retvalues[0]);
-	printf("Permission is %o\n",rwx);
+	log_msg("Permission is %o\n",rwx);
 
 	long  sizeOfFile = 0 ; 
 	sscanf(retvalues[4],"%ld",&sizeOfFile);
 	int  numberOfLinks  ;
 	sscanf(retvalues[1],"%d",&numberOfLinks);
 
-	printf("size is %ld\n",sizeOfFile);
-	printf("number of links %d\n",numberOfLinks);
+	log_msg("size is %ld\n",sizeOfFile);
+    log_msg("number of links %d\n",numberOfLinks);
 
 	statbuf->st_mode = rwx ;
 	statbuf->st_nlink =  numberOfLinks    ;
@@ -342,7 +349,7 @@ int parseMode(char *rwxStr) {
 	char dirOrReg ;
 	int rwx = 0 ;
 
-	printf("The rwx string is %s(%lu)\n",rwxStr,strlen(rwxStr));
+	log_msg("The rwx string is %s(%lu)\n",rwxStr,strlen(rwxStr));
 
 
 	if (n == 10) {

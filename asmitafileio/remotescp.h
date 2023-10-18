@@ -7,6 +7,7 @@ int remotestat(char* user, char* host, char* remotefilename, struct stat *statbu
 
 int parseMode(char *rwxStr) ;
 int remotedir(char *u, char *h, char *d, char *dirbuff);
+int remotedirnames(char *user, char *host, char *dir, char *dirbuffer);
 
 
 
