@@ -8,11 +8,16 @@ real	2m30.706s
 user	1m15.594s
 sys	1m13.915s
 
-
-
 NFS
 ===
 real	3m5.686s
 user	1m16.056s
 sys		1m36.568s
+
+
+SCP ( ASMFS )
+=============
+real	14m42.026s
+user	1m32.621s
+sys		2m15.396s
 
