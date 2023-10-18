@@ -1,0 +1,18 @@
+
+a) 10% read 90% write
+
+localdisk
+=========
+
+real	2m30.706s
+user	1m15.594s
+sys	1m13.915s
+
+
+
+NFS
+===
+real	3m5.686s
+user	1m16.056s
+sys		1m36.568s
+
