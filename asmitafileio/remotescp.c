@@ -8,6 +8,10 @@
 
 #include "log.h"
 
+
+char dirStuff[5000] ; 
+
+
 #ifdef REMOTESCPDEBUG
 
 #define log_msg printf
@@ -15,8 +19,18 @@
 int main(void)
 {
     int retvalue;
+	struct stat statbuff ;
 
 #ifdef buntz
+    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo", &statbuff);
+    //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1", &statbuff);
+    remotedir("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+	remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+
+    return 0;
+
+
+
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com:/etc/hosts", "/tmp/asmijunk");
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo", "/tmp/fooremote");
     /*
@@ -40,8 +54,8 @@ int main(void)
     scpreadf("scp://ubiqadmin@nandihill.centralindia.cloudapp.azure.com/~/asmfsexports/foo", "/tmp/foo");
 
 #else
-    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo");
-    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1");
+    //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo", &statbuff);
+    //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1", &statbuff);
 
     return 0;
     // scpreadf("scp://asmita@master0/etc/hosts","/tmp/asmijunk");
@@ -225,7 +239,43 @@ int scpwritef(char *localfilename, char *remotefileuri)
     }
 }
 
-int remotestat(char* user, char* host, char* remotefilename)
+
+int remotedirnames(char *user, char *host, char *dir, char *dirbuffer) {
+    static char cmd[2000];
+	static char buf[2000];
+	dirbuffer[0] = '\0' ;
+
+    sprintf(cmd, "ssh %s@%s \"cd asmfsexports; ls -1 .%s \" 2>&1", user, host, dir);
+	printf("Command is %s\n",cmd);
+	FILE *fp = popen(cmd, "r");
+	while (fgets(buf,sizeof(buf), fp) != NULL) {
+		strcat(dirbuffer,buf);
+		printf("The return value %s\n",buf);
+	}
+	printf("---------------------\n");
+	printf("remotedirnames contents\n%s\n",dirbuffer);
+}
+
+
+
+int remotedir(char *user, char *host, char *dir, char *dirbuffer) {
+    static char cmd[2000];
+	static char buf[2000];
+	dirbuffer[0] = '\0' ;
+
+    sprintf(cmd, "ssh %s@%s \"cd asmfsexports; ls -l .%s | grep \\\"^-\\\"  | sed \\\"s/ \\\\+/ /g\\\" \" 2>&1", user, host, dir);
+	printf("Command is %s\n",cmd);
+	FILE *fp = popen(cmd, "r");
+	while (fgets(buf,sizeof(buf), fp) != NULL) {
+		strcat(dirbuffer,buf);
+		printf("The return value %s\n",buf);
+	}
+	printf("---------------------\n");
+	printf("remotedir contents\n%s\n",dirbuffer);
+}
+
+
+int remotestat(char* user, char* host, char* remotefilename,  struct stat *statbuf)
 {   
     static char cmd[2000];
     //char* cmd= "\"cd asmfsexports; ls -al foo | sed \\\"s/ \\\\+/,/g\\\" \" ";
@@ -244,21 +294,124 @@ int remotestat(char* user, char* host, char* remotefilename)
     //printf("Retval for %s is: %d \n", remotefilename, retval);
     //return retval;
     static char retvalues[9][200];
-    sscanf(buf,"%s %s %s %s %s %s %s %s %s",retvalues[0],
-    retvalues[1],
-    retvalues[2],
-    retvalues[3],
-    retvalues[4],
-    retvalues[5],
-    retvalues[6],
-    retvalues[7],
-    retvalues[8]);
+    sscanf(buf,"%s %s %s %s %s %s %s %s %s",
+	retvalues[0], // permission
+    retvalues[1], // link
+    retvalues[2], // uid
+    retvalues[3], // gid
+    retvalues[4], // size
+    retvalues[5], // size
+    retvalues[6], // month
+    retvalues[7], // date
+    retvalues[8]); //filename
     for(int i=0;i<9;i++)
     {
         printf("Value of retvalues %d is %s \n", i, retvalues[i]);
     }
 
     pclose(fp);
+
+
+	int rwx = parseMode(retvalues[0]);
+	printf("Permission is %o\n",rwx);
+
+	long  sizeOfFile = 0 ; 
+	sscanf(retvalues[4],"%ld",&sizeOfFile);
+	int  numberOfLinks  ;
+	sscanf(retvalues[1],"%d",&numberOfLinks);
+
+	printf("size is %ld\n",sizeOfFile);
+	printf("number of links %d\n",numberOfLinks);
+
+	statbuf->st_mode = rwx ;
+	statbuf->st_nlink =  numberOfLinks    ;
+	statbuf->st_uid = getuid()     ;
+	statbuf->st_gid = getgid()  ;
+	statbuf->st_size = sizeOfFile ;
+
+
+
+
     return 0;
 
+}
+
+int parseMode(char *rwxStr) {
+
+	unsigned long n = strlen(rwxStr);
+	char dirOrReg ;
+	int rwx = 0 ;
+
+	printf("The rwx string is %s(%lu)\n",rwxStr,strlen(rwxStr));
+
+
+	if (n == 10) {
+		char *cp = &rwxStr[0] ;
+
+		char dirOrReg = *cp++ ; 
+
+		switch( dirOrReg ) {
+
+			case 'd':
+				rwx = S_IFDIR ;
+				break ; 
+				
+			case '-':
+				rwx = S_IFREG ;
+				break ; 
+				
+			case 'p':
+				rwx = S_IFDIR ;
+				break ; 
+				
+			case 'c':
+				rwx = S_IFCHR ;
+				break ; 
+				
+			case 'b':
+				rwx = S_IFBLK ;
+				break ; 
+
+			case 'l':
+				rwx = S_IFLNK ;
+				break ; 
+
+			case 's':
+				rwx = S_IFSOCK ;
+				break ; 
+
+			default:
+				rwx = S_IFSOCK ;
+				break ; 
+		} 
+
+
+
+
+
+
+		rwx |= *cp++ == 'r' ? 04  : 0 ;
+		rwx |= *cp++ == 'w' ? 02  : 0 ;
+		rwx |= *cp++ == 'x' ? 01  : 0 ;
+		rwx <<= 3  ;
+		//printf("the composed rwx is %o\n",rwx);
+
+		rwx |= *cp++ == 'r' ? 04  : 0 ;
+		rwx |= *cp++ == 'w' ? 02  : 0 ;
+		rwx |= *cp++ == 'x' ? 01  : 0 ;
+		rwx <<= 3  ;
+		//printf("the composed rwx is %o\n",rwx);
+
+		rwx |= *cp++ == 'r' ? 04  : 0 ;
+		rwx |= *cp++ == 'w' ? 02  : 0 ;
+		rwx |= *cp++ == 'x' ? 01  : 0 ;
+
+		//printf("the composed rwx is %o\n",rwx);
+		//printf("File or Directory: %c",dirOrReg);
+
+		return rwx ; 
+	}
+
+	else 
+		return 0755 ; 
 }
