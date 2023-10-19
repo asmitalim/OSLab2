@@ -15,13 +15,9 @@ main() {
    buf[2] = 'A';
    buf[3] = 'q';
    buf[4] = '0';
-   long ls = lseek(fd0,100L,SEEK_SET);
-   printf("seeked to %ld\n",ls);
    int nb0 = write(fd0, buf, 100);
-   printf("Wrote %d, then xx  bytes\n", nb0);
    int nb1;
    close(fd0);
-   lseek(fd1,100L,SEEK_SET);
    nb1 = read(fd1, buf, 100);
    assert(buf[0] == 9);
    assert(buf[1] == 81);
