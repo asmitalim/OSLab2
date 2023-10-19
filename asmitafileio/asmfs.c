@@ -317,26 +317,30 @@ int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 {
     int retstat = 0;
 
-	/*
     log_msg("\nasm_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
     // no need to get fpath on this one, since I work from fi->fh not the path
+	/*
     log_fi(fi);
-    return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 	*/
 
 
-	retstat = pread(fi->fh, buf,size,offset) ;
+    //return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
+
+	retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
+	retstat = log_syscall("read",  read(fi->fh, buf, size),0);
+
+	//retstat = pread(fi->fh, buf,size,offset) ;
 	return retstat ;
 }
 
-int bb_write(const char *path, const char *buf, size_t size, off_t offset,
+int asm_write(const char *path, const char *buf, size_t size, off_t offset,
              struct fuse_file_info *fi)
 {
     int retstat = 0;
 
 	/*
-    log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+    log_msg("\nasm_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
@@ -685,7 +689,7 @@ struct fuse_operations bb_oper = {
     .utime = bb_utime,
     .open = asm_open,
     .read = asm_read,
-    .write = bb_write,
+    .write = asm_write,
     /** Just a placeholder, don't set */ // huh???
     .statfs = bb_statfs,
     .flush = bb_flush,
