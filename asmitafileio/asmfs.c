@@ -325,10 +325,10 @@ int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 	*/
 
 
-    //return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
+    return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 
-	retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
-	retstat = log_syscall("read",  read(fi->fh, buf, size),0);
+	//retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
+	//retstat = log_syscall("read",  read(fi->fh, buf, size),0);
 
 	//retstat = pread(fi->fh, buf,size,offset) ;
 	return retstat ;
