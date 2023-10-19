@@ -29,7 +29,7 @@ int pickupreadorwrite()
     /* write 1 */
 
     int randval = rand()%100 ;
-    if( randval > 90)
+    if( randval >= 90)
         return 1 ;
     else
         return 0 ;
