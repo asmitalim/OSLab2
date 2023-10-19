@@ -48,7 +48,7 @@ void log_msg(const char *format, ...)
     va_list ap;
     va_start(ap, format);
 
-    vfprintf(BB_DATA->logfile, format, ap);
+    vfprintf(ASM_DATA->logfile, format, ap);
 }
 
 // Report errors to logfile and give -errno to caller
@@ -85,11 +85,11 @@ void log_fuse_context(struct fuse_context *context)
     /** Private filesystem data */
     //	void *private_data;
     log_struct(context, private_data, %08x, );
-    log_struct(((struct bb_state *)context->private_data), logfile, %08x, );
-    log_struct(((struct bb_state *)context->private_data), rootdir, %s, );
+    log_struct(((struct asm_state *)context->private_data), logfile, %08x, );
+    log_struct(((struct asm_state *)context->private_data), rootdir, %s, );
 
-    log_struct(((struct bb_state *)context->private_data), remotehostname, %s, );
-    log_struct(((struct bb_state *)context->private_data), remoteIP, %s, );
+    log_struct(((struct asm_state *)context->private_data), remotehostname, %s, );
+    log_struct(((struct asm_state *)context->private_data), remoteuser, %s, );
 
 	
     /** Umask of the calling process (introduced in version 2.8) */
@@ -191,7 +191,7 @@ void log_fi (struct fuse_file_info *fi)
 void log_retstat(char *func, int retstat)
 {
     int errsave = errno;
-    log_msg("    %s returned %d\n", func, retstat);
+    //log_msg("    %s returned %d\n", func, retstat);
     errno = errsave;
 }
       
@@ -202,7 +202,7 @@ int log_syscall(char *func, int retstat, int min_ret)
     log_retstat(func, retstat);
 
     if (retstat < min_ret) {
-	log_error(func);
+		log_error(func);
 	retstat = -errno;
     }
 

@@ -23,12 +23,12 @@
 // maintain bbfs state in here
 #include <limits.h>
 #include <stdio.h>
-struct bb_state {
+struct asm_state {
     FILE *logfile;
     char *rootdir;
     char remotehostname[200];
-    char remoteIP[50];
+    char remoteuser[50];
 };
-#define BB_DATA ((struct bb_state *) fuse_get_context()->private_data)
+#define ASM_DATA ((struct asm_state *) fuse_get_context()->private_data)
 
 #endif

@@ -2,7 +2,7 @@ BUILDHOST=`uname -n`
 MAKE_ASMFS_HOST=${ASMFS_HOST}
 MAKE_ASMFS_USER=${ASMFS_USER}
 
-all: asmitaapp bbfs asmfs asmitaremotetest remotescp
+all: asmitaapp asmfs asmitaremotetest remotescp
 	@echo "............................."
 	@echo "Building on:$(BUILDHOST)"
 	@echo "Asmita app is built"
