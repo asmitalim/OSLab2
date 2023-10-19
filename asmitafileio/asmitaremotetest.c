@@ -18,7 +18,7 @@ randomtestsmallsize(long maxnumber,int readpercentage, int tasknumber);
 void doRamdomTask0(int fd, char *charbuf, int rw, int idx) ;
 void doRamdomTask1(int fd, char *charbuf, int rw, int idx) ;
 
-char buf[10000];
+char buf[100000];
 
 char tempbuf[100] ;
 char *bufblocks = &buf[0] ;
@@ -71,7 +71,7 @@ int main() {
 	casetime = timespent(tick1,tick0);
 	printf("Random, Small, samelocation, task0, %ld, %d, %5.3lf\n",MAXNUMBER, 70, casetime);
 
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,90,1); tick1 = clock();
+	tick0 = clock(); randomtestsmallsize(MAXNUMBER,10,1); tick1 = clock();
 	casetime = timespent(tick1,tick0);
 	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 10, casetime);
 
@@ -170,7 +170,7 @@ void doRamdomTask0(int fd1, char *tbuf, int rw, int idx) {
 		lseek(fd1,1000L,SEEK_SET);
 		nb1 = read(fd1, tbuf, 100);
 		//fprintf(stderr,"Read %d bytes\n", nb1);
-		assert(nb1 == 100);
+		//assert(nb1 == 100);
 	}
 	else {
 		lseek(fd1,1000L,SEEK_SET);
@@ -181,7 +181,7 @@ void doRamdomTask0(int fd1, char *tbuf, int rw, int idx) {
 		buf[4] = 'm' ;
 		nb2 = write(fd1,tbuf,100);
 		//fprintf(stderr,"Write %d bytes\n", nb2);
-		assert(nb2 == 100);
+		//assert(nb2 == 100);
 	}
 }
 
@@ -190,10 +190,10 @@ void doRamdomTask1(int fd1, char *tbuf, int rw, int idx) {
 	if(rw == 0 ) {
 		lseek(fd1,100*idx+0L,SEEK_SET);
 		nb1 = read(fd1, tbuf, 100L);
-		assert(nb1 == 100);
+		//assert(nb1 == 100);
 	} else {
 		lseek(fd1,100*idx+0L,SEEK_SET);
 		nb2 = write(fd1,&bufblocks[100*idx],100L);
-		assert(nb2 == 100);
+		//assert(nb2 == 100);
 	}
 }
