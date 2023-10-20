@@ -2,7 +2,7 @@ BUILDHOST=`uname -n`
 MAKE_ASMFS_HOST=${ASMFS_HOST}
 MAKE_ASMFS_USER=${ASMFS_USER}
 
-all: asmitaapp asmfs asmitaremotetest remotescp
+all: asmitaapp asmfs asmitaremotetest remotescp ammifs
 	@echo "............................."
 	@echo "Building on:$(BUILDHOST)"
 	@echo "Asmita app is built"
@@ -26,6 +26,7 @@ clean:
 	rm -f asmitaapp
 	rm -f bbfs
 	rm -f asmfs
+	rm -f ammifs
 	rm -f asmitaremotetest
 	rm -f remotescp
 
@@ -44,6 +45,13 @@ asmitaremotefs: asmitaremotetest
 	#rm -f /tmp/remotejunk
 	cd ./mountdir; ../asmitaremotetest
 
+mount:
+	rm -f ./asmfs.log
+	./ammifs ${ASMFS_HOST} ${ASMFS_USER} /tmp/localroot mountdir
+
+
+umount:
+	fusermount -u mountdir
 
 
 mountasmfs:
@@ -53,11 +61,11 @@ mountasmfs:
 umountasmfs:
 	fusermount -u mountdir
 
-bbfs: bbfs.o log.o
-	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2  -D$(BUILDHOST)  -o bbfs bbfs.o log.o -lfuse -pthread
+ammifs: ammifs.o log.o remotescp.o
+	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2  -D$(BUILDHOST)  -o ammifs ammifs.o log.o remotescp.o -lfuse -lcurl -pthread
 
-bbfs.o: bbfs.c
-	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2  -D$(BUILDHOST)  -c bbfs.c -pthread
+ammifs.o: ammifs.c
+	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2  -D$(BUILDHOST)  -c ammifs.c -pthread
 
 log.o: log.c
 	gcc -D_FILE_OFFSET_BITS=64 -I/usr/include/fuse -g -O2  -D$(BUILDHOST)  -c log.c -pthread
