@@ -45,20 +45,7 @@ static void asm_fullpath(char fpath[PATH_MAX], const char *path)
 
 
 
-/* 
-** ======================================================DHAP CODE Starts
-*/
 
-
-/**
- * Less Simple, Yet Stupid Filesystem.
- * 
- * Mohammed Q. Hussain - http://www.maastaar.net
- *
- * This is an example of using FUSE to build a simple filesystem. It is a part of a tutorial in MQH Blog with the title "Writing Less Simple, Yet Stupid Filesystem Using FUSE in C": http://maastaar.net/fuse/linux/filesystem/c/2019/09/28/writing-less-simple-yet-stupid-filesystem-using-FUSE-in-C/
- *
- * License: GNU GPL
- */
  
 #define FUSE_USE_VERSION 30
 
@@ -78,17 +65,85 @@ int directoryIndex = -1;
 char cachedFileNames[ 256 ][ 1024 ];
 int fileNameIndex = -1;
 
-char fileStuff[ 256 ][ 256 ];
+struct stat cachedFileStats[256] ;
+struct stat cachedDirStats[256] ;
+
+char fileStuff[ 256 ][ 9192 ];
 int  cachedFileIndex = -1;
 
+char dirStuff[5000];
+
+void addDirectoryEntry(const char *ptr, struct stat *statptr);
+void addFileIntoCache( const char *ptr, struct stat *statptr);
+
+
+void listAndRemoteDirNames() {
+		int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+
+		//int n = remotedirnames(ASM_DATA->remoteIP, ASM_DATA->remotehostname, path, dirbuffer);
+  
+  		char *str = dirStuff ;
+		struct stat statbuf ;
+  
+  		if( n != 0 ) {
+  			int buflen = strlen(dirStuff);
+  			char delim[] = "\n" ;
+ 	 
+  			char *ptr = strtok(str,delim);
+ 	 
+  			log_msg("Getting all tokens split using slash n\n");
+ 	 
+  		while(ptr != NULL) {
+  			log_msg("ptr[%s]\n",ptr);
+
+			char remoteXName[300] ;
+			sprintf(remoteXName,"/%s",ptr);
+
+
+			log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
+			int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
+			log_stat(&statbuf);
+
+
+			if( x == 0 ) {
+				if(statbuf.st_mode & S_IFREG )  {
+					log_msg("list:REMOTE:  %s is a file\n",ptr);
+					addFileIntoCache( ptr, &statbuf);
+				}
+				else if(statbuf.st_mode & S_IFDIR ) {
+					log_msg("list:REMOTE:  %s is a directory\n",ptr);
+					addDirectoryEntry(ptr, &statbuf);
+				} else {
+					log_msg("list:REMOTE:  %s is a unsupported file\n",ptr);
+				}
+			} else {
+
+			}
+
+  			ptr = strtok(NULL, delim);
+  		}
+  	}
+}
 
 
 
 
-void addDirectoryEntry( const char *remoteDirName )
+
+void addDirectoryEntry( const char *remoteDirName, struct stat *statptr )
 {
 	directoryIndex++;
 	strcpy( cachedDirectories[ directoryIndex ], remoteDirName );
+
+	memset(&cachedDirStats[ directoryIndex], 0, sizeof(struct stat));
+
+	cachedDirStats[directoryIndex].st_mode = statptr->st_mode ;
+	cachedDirStats[directoryIndex].st_atime = statptr->st_atime ;
+	cachedDirStats[directoryIndex].st_mtime = statptr->st_mtime ;
+	cachedDirStats[directoryIndex].st_size = statptr->st_size ;
+	cachedDirStats[directoryIndex].st_blksize = statptr->st_blksize ;
+	cachedDirStats[directoryIndex].st_uid = statptr->st_uid ;
+	cachedDirStats[directoryIndex].st_gid = statptr->st_gid ;
+	cachedDirStats[directoryIndex].st_nlink = statptr->st_nlink ;
 }
 
 
@@ -113,10 +168,23 @@ int ifCachedDir( const char *path )
 
 
 
-void addFileIntoCache( const char *filename )
+void addFileIntoCache( const char *filename, struct stat *statptr )
 {
 	fileNameIndex++;
+
 	strcpy( cachedFileNames[ fileNameIndex ], filename );
+	memset(&cachedFileStats[ fileNameIndex], 0, sizeof(struct stat));
+
+	cachedFileStats[fileNameIndex].st_mode = statptr->st_mode ;
+	cachedFileStats[fileNameIndex].st_atime = statptr->st_atime ;
+	cachedFileStats[fileNameIndex].st_mtime = statptr->st_mtime ;
+	cachedFileStats[fileNameIndex].st_size = statptr->st_size ;
+	cachedFileStats[fileNameIndex].st_blksize = statptr->st_blksize ;
+	cachedFileStats[fileNameIndex].st_uid = statptr->st_uid ;
+	cachedFileStats[fileNameIndex].st_gid = statptr->st_gid ;
+	cachedFileStats[fileNameIndex].st_nlink = statptr->st_nlink ;
+
+
 	
   	cachedFileIndex++;
 	strcpy( fileStuff[ cachedFileIndex ], "" );
@@ -141,6 +209,19 @@ int getFileIndex( const char *path )
 	return -1;
 }
 
+
+int getDirectoryIndex( const char *path )
+{
+	
+	for ( int i = 0; i <= directoryIndex; i++ )
+		if ( strcmp( path+1, cachedDirectories[ i ] ) == 0 )
+			return i;
+	
+	return -1;
+}
+
+
+
 void writeFile( const char *path, const char *stuff ) {
 
 	int fileIndex = getFileIndex( path );
@@ -159,16 +240,40 @@ static int do_getattr( const char *path, struct stat *st )
 	st->st_atime = time( NULL ); 
 	st->st_mtime = time( NULL ); 
 	
-	if ( strcmp( path, "/" ) == 0 || ifCachedDir( path ) == 1 )
+	if ( strcmp( path, "/" ) == 0 ) // || ifCachedDir( path ) == 1 )
 	{
 		st->st_mode = S_IFDIR | 0755;
 		st->st_nlink = 2; 
 	}
 	else if ( isCachedFileName( path ) == 1 )
 	{
-		st->st_mode = S_IFREG | 0644;
-		st->st_nlink = 1;
-		st->st_size = 1024; /* to be decided */
+		int fileIndex =  getFileIndex( path );
+
+		if ( fileIndex == -1 ) {
+			return -ENOENT;
+		} else {
+			st->st_mode = cachedFileStats[fileIndex].st_mode ;
+			st->st_nlink = cachedFileStats[fileIndex].st_mode ;
+			st->st_size = cachedFileStats[fileIndex].st_mode ;
+			st->st_blksize = cachedFileStats[fileIndex].st_blksize ;
+			st->st_size = cachedFileStats[fileIndex].st_size ;
+			st->st_nlink = cachedFileStats[fileIndex].st_nlink ;
+		}
+
+	}
+	else if ( ifCachedDir( path ) == 1 )
+	{
+			int dirIndex =  getDirectoryIndex( path );
+
+			if ( dirIndex == -1 ) {
+				return -ENOENT;
+			}
+			st->st_mode = cachedDirStats[dirIndex].st_mode ;
+			st->st_nlink = cachedDirStats[dirIndex].st_mode ;
+			st->st_size = cachedDirStats[dirIndex].st_mode ;
+			st->st_blksize = cachedDirStats[dirIndex].st_blksize ;
+			st->st_size = cachedDirStats[dirIndex].st_size ;
+			st->st_nlink = cachedDirStats[dirIndex].st_nlink ;
 	}
 	else
 	{
@@ -189,10 +294,10 @@ static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, o
 	if ( strcmp( path, "/" ) == 0 ) 
 	{
 		for ( int i = 0; i <= directoryIndex; i++ )
-			filler( buffer, cachedDirectories[ i ], NULL, 0 );
+			filler( buffer, cachedDirectories[ i ], &cachedDirStats[i], 0 );
 	
 		for ( int i = 0; i <= fileNameIndex; i++ )
-			filler( buffer, cachedFileNames[ i ], NULL, 0 );
+			filler( buffer, cachedFileNames[ i ], &cachedFileStats[i], 0 );
 	}
 	
 	return 0;
@@ -215,14 +320,33 @@ static int do_read( const char *path, char *buffer, size_t size, off_t offset, s
 
 static int do_mkdir( const char *path, mode_t mode )
 {
-	path++;
-	addDirectoryEntry( path );
+	struct stat st ;
+	st.st_mode = 0755 | S_IFDIR ; 
+	st.st_size = 0 ; 
+	st.st_blksize = 4096 ;
+	st.st_uid = getuid() ;
+	st.st_gid = getgid() ;
+	st.st_atime = time(NULL) ;
+	st.st_mtime = time(NULL) ;
+	st.st_nlink = 2 ; 
+
+	addDirectoryEntry( path+1, &st );
 	return 0;
 }
 
 static int do_mknod( const char *path, mode_t mode, dev_t rdev )
 {
-	addFileIntoCache( path+1 );
+	struct stat st ;
+	st.st_mode = 0644 | S_IFREG ;  // replace with mode
+	st.st_size = 0 ; 
+	st.st_blksize = 4096 ;
+	st.st_uid = getuid() ;
+	st.st_gid = getgid() ;
+	st.st_atime = time(NULL) ;
+	st.st_mtime = time(NULL) ;
+	st.st_nlink = 1 ; 
+
+	addFileIntoCache( path+1,&st );
 	
 	return 0;
 }
@@ -234,14 +358,6 @@ static int do_write( const char *path, const char *buffer, size_t size, off_t of
 }
 
 
-static struct fuse_operations ammiops = {
-		 .getattr    = do_getattr,
-		 .readdir    = do_readdir,
-		 .read       = do_read,
-		 .mkdir      = do_mkdir,
-		 .mknod      = do_mknod,
-		 .write      = do_write,
- };
 
 
 
@@ -783,6 +899,8 @@ void *asm_init(struct fuse_conn_info *conn)
     log_conn(conn);
     log_fuse_context(fuse_get_context());
 
+	listAndRemoteDirNames() ;
+
     return ASM_DATA;
 }
 
@@ -866,6 +984,18 @@ struct fuse_operations bb_oper = {
     .destroy = asm_destroy,
 	*/
 };
+
+
+
+static struct fuse_operations ammiops = {
+		 .getattr    = do_getattr,
+		 .readdir    = do_readdir,
+		 .read       = do_read,
+		 .mkdir      = do_mkdir,
+		 .mknod      = do_mknod,
+		 .write      = do_write,
+		 .init 		 = asm_init,
+ };
 
 void asm_usage()
 {

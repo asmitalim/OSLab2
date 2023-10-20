@@ -23,8 +23,8 @@ int main(void)
 	struct stat statbuff ;
 
 #ifdef buntz
-    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "/foo", &statbuff);
-    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "/dirfoo/", &statbuff);
+    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo", &statbuff);
+    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "dirfoo/", &statbuff);
     //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1", &statbuff);
     remotedir("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
 	int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
@@ -347,7 +347,7 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
         	pclose(fp);
         	return -1;
 		}
-   		log_msg("RemoteStat():(2)Output is %s", buf);
+   		//log_msg("RemoteStat():(2)Output is %s", buf);
     }
     else if(strncmp(buf,"ls: cannot access",17)==0)
     {
@@ -357,7 +357,7 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
     }
 	else {
 	}
-	log_msg("RemoteStat():(2)Output is %s", buf);
+	//log_msg("RemoteStat():(2)Output is %s", buf);
 
 
 
@@ -388,7 +388,7 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
     }
 
     pclose(fp);
-	log_msg("The length of rwx is %ld\n",strlen(retvalues[0]));
+	//log_msg("The length of rwx is %ld\n",strlen(retvalues[0]));
 
 
 	int rwx = parseMode(retvalues[0]);
@@ -410,6 +410,15 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
 	statbuf->st_atime = time(NULL);
 	statbuf->st_mtime = time(NULL);
 
+	if(statbuf->st_mode & S_IFREG ) {
+		log_msg("RemoteStat():entry is -rwx etc.\n");
+	}
+	else if(statbuf->st_mode & S_IFDIR ) {
+		log_msg("RemoteStat():entry is drwx etc.\n");
+	} else {
+		log_msg("RemoteStat():unsupported i.e prwx,orlrwx \n");
+	}
+
 
 
 
@@ -423,7 +432,7 @@ int parseMode(char *rwxStr) {
 	char dirOrReg ;
 	int rwx = 0 ;
 
-	log_msg("ParseMode():The rwx string is %s(%lu)\n",rwxStr,strlen(rwxStr));
+	//log_msg("ParseMode():The rwx string is %s(%lu)\n",rwxStr,strlen(rwxStr));
 
 
 	if (n == 10) {
