@@ -2,7 +2,7 @@ BUILDHOST=`uname -n`
 MAKE_ASMFS_HOST=${ASMFS_HOST}
 MAKE_ASMFS_USER=${ASMFS_USER}
 
-all: asmitaapp asmfs asmitaremotetest remotescp ammifs
+all: asmitaapp asmfs asmitaremotetest remotescp ammifs test
 	@echo "............................."
 	@echo "Building on:$(BUILDHOST)"
 	@echo "Asmita app is built"
@@ -29,6 +29,7 @@ clean:
 	rm -f ammifs
 	rm -f asmitaremotetest
 	rm -f remotescp
+	make testclean
 
 asmitafs: asmitaapp 
 	echo "mounting and running the UT IO test"
@@ -86,4 +87,21 @@ remotescp:  remotescp_debug.o
 	gcc  -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST) -DREMOTESCPDEBUG -I/usr/include/fuse -g -O2 -o remotescp  remotescp_debug.o -pthread -lcurl
 
 
+
+test:	filetest1 filetest2 filetest3
+	echo "building test suits"
+
+testclean:
+	rm -f filetest1 filetest2 filetest3
+
+
+filetest1: 	filetest1.o
+	gcc -o filetest1  filetest1.o
+
+filetest2: 	filetest2.o
+	gcc -o filetest2  filetest2.o
+
+
+filetest3: 	filetest3.o
+	gcc -o filetest3  filetest3.o
 

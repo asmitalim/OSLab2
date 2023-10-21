@@ -1,7 +1,11 @@
 /*
 
 
-	This file is baded on the Big Brother file system 
+	ammifs.c
+
+
+
+	credit: This file is baded on the Big Brother file system   "bbfs.c"
 
 
 */
@@ -24,7 +28,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include<stdlib.h>
+#include <stdlib.h>
 
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
@@ -33,11 +37,10 @@
 #include "log.h"
 #include "remotescp.h"
 
-static void asm_fullpath(char fpath[PATH_MAX], const char *path)
-{
+static void asm_fullpath(char fpath[PATH_MAX], const char *path) {
     strcpy(fpath, ASM_DATA->rootdir);
     strncat(fpath, path, PATH_MAX); // ridiculously long paths will
-                                    // break here
+    // break here
 
     log_msg("    asm_fullpath:  rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
             ASM_DATA->rootdir, path, fpath);
@@ -46,7 +49,7 @@ static void asm_fullpath(char fpath[PATH_MAX], const char *path)
 
 
 
- 
+
 #define FUSE_USE_VERSION 30
 
 #include <fuse.h>
@@ -54,22 +57,26 @@ static void asm_fullpath(char fpath[PATH_MAX], const char *path)
 #include <unistd.h>
 #include <sys/types.h>
 #include <time.h>
-#include <string.h>
-#include <stdlib.h>
-#include <errno.h>
 
 
-char cachedDirectories[ 256 ][ 1024 ];
+#define MAXCACHEFILESIZE 8192 
+
+#define TABLESIZE 256
+#define MAXNAMESIZE 1024
+
+
 int directoryIndex = -1;
+char cachedDirectories[ TABLESIZE ][ MAXNAMESIZE ];
+struct stat cachedDirStats[TABLESIZE] ;
 
-char cachedFileNames[ 256 ][ 1024 ];
 int fileNameIndex = -1;
+char cachedFileNames[ TABLESIZE ][ MAXNAMESIZE ];
+struct stat cachedFileStats[TABLESIZE] ;
 
-struct stat cachedFileStats[256] ;
-struct stat cachedDirStats[256] ;
-
-char fileStuff[ 256 ][ 9192 ];
 int  cachedFileIndex = -1;
+char fileStuff[ TABLESIZE ][ MAXCACHEFILESIZE ];
+
+
 
 char dirStuff[5000];
 
@@ -78,89 +85,74 @@ void addFileIntoCache( const char *ptr, struct stat *statptr);
 
 
 void listAndRemoteDirNames() {
-		int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+    int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
 
-		//int n = remotedirnames(ASM_DATA->remoteIP, ASM_DATA->remotehostname, path, dirbuffer);
-  
-  		char *str = dirStuff ;
-		struct stat statbuf ;
-  
-  		if( n != 0 ) {
-  			int buflen = strlen(dirStuff);
-  			char delim[] = "\n" ;
- 	 
-  			char *ptr = strtok(str,delim);
- 	 
-  			log_msg("Getting all tokens split using slash n\n");
- 	 
-  		while(ptr != NULL) {
-  			log_msg("ptr[%s]\n",ptr);
+    //int n = remotedirnames(ASM_DATA->remoteIP, ASM_DATA->remotehostname, path, dirbuffer);
 
-			char remoteXName[300] ;
-			sprintf(remoteXName,"/%s",ptr);
+    char *str = dirStuff ;
+    struct stat statbuf ;
 
+    if( n != 0 ) {
+        int buflen = strlen(dirStuff);
+        char delim[] = "\n" ;
 
-			log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
-			int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
-			log_stat(&statbuf);
+        char *ptr = strtok(str,delim);
+
+        log_msg("Getting all tokens split using slash n\n");
+
+        while(ptr != NULL) {
+            log_msg("ptr[%s]\n",ptr);
+
+            char remoteXName[300] ;
+            sprintf(remoteXName,"/%s",ptr);
 
 
-			if( x == 0 ) {
-				if(statbuf.st_mode & S_IFREG )  {
-					log_msg("list:REMOTE:  %s is a file\n",ptr);
-					addFileIntoCache( ptr, &statbuf);
-				}
-				else if(statbuf.st_mode & S_IFDIR ) {
-					log_msg("list:REMOTE:  %s is a directory\n",ptr);
-					addDirectoryEntry(ptr, &statbuf);
-				} else {
-					log_msg("list:REMOTE:  %s is a unsupported file\n",ptr);
-				}
-			} else {
+            log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
+            int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
+            log_stat(&statbuf);
 
-			}
 
-  			ptr = strtok(NULL, delim);
-  		}
-  	}
+            if( x == 0 ) {
+                if(statbuf.st_mode & S_IFREG )  {
+                    log_msg("list:REMOTE:  %s is a file\n",ptr);
+                    addFileIntoCache( ptr, &statbuf);
+                } else if(statbuf.st_mode & S_IFDIR ) {
+                    log_msg("list:REMOTE:  %s is a directory\n",ptr);
+                    addDirectoryEntry(ptr, &statbuf);
+                } else {
+                    log_msg("list:REMOTE:  %s is a unsupported file\n",ptr);
+                }
+            } else {
+
+            }
+
+            ptr = strtok(NULL, delim);
+        }
+    }
 }
 
 
 
 
 
-void addDirectoryEntry( const char *remoteDirName, struct stat *statptr )
-{
-	directoryIndex++;
-	strcpy( cachedDirectories[ directoryIndex ], remoteDirName );
+void addDirectoryEntry( const char *remoteDirName, struct stat *statptr ) {
 
-	memset(&cachedDirStats[ directoryIndex], 0, sizeof(struct stat));
-
-	cachedDirStats[directoryIndex].st_mode = statptr->st_mode ;
-	cachedDirStats[directoryIndex].st_atime = statptr->st_atime ;
-	cachedDirStats[directoryIndex].st_mtime = statptr->st_mtime ;
-	cachedDirStats[directoryIndex].st_size = statptr->st_size ;
-	cachedDirStats[directoryIndex].st_blksize = statptr->st_blksize ;
-	cachedDirStats[directoryIndex].st_uid = statptr->st_uid ;
-	cachedDirStats[directoryIndex].st_gid = statptr->st_gid ;
-	cachedDirStats[directoryIndex].st_nlink = statptr->st_nlink ;
-}
+	if(directoryIndex + 1 == TABLESIZE) return ;
 
 
+    directoryIndex++;
+    strcpy( cachedDirectories[ directoryIndex ], remoteDirName );
 
+    memset(&cachedDirStats[ directoryIndex], 0, sizeof(struct stat));
 
-
-
-int ifCachedDir( const char *path )
-{
-	
-	char *ptr = path ; 
-
-	for ( int ii = 0; ii <= directoryIndex; ii++ )
-		if ( strcmp( ptr+1, cachedDirectories[ ii ] ) == 0 )
-			return 1;
-	
-	return 0;
+    cachedDirStats[directoryIndex].st_mode = statptr->st_mode ;
+    cachedDirStats[directoryIndex].st_atime = statptr->st_atime ;
+    cachedDirStats[directoryIndex].st_mtime = statptr->st_mtime ;
+    cachedDirStats[directoryIndex].st_size = statptr->st_size ;
+    cachedDirStats[directoryIndex].st_blksize = statptr->st_blksize ;
+    cachedDirStats[directoryIndex].st_uid = statptr->st_uid ;
+    cachedDirStats[directoryIndex].st_gid = statptr->st_gid ;
+    cachedDirStats[directoryIndex].st_nlink = statptr->st_nlink ;
 }
 
 
@@ -168,200 +160,246 @@ int ifCachedDir( const char *path )
 
 
 
-void addFileIntoCache( const char *filename, struct stat *statptr )
-{
-	fileNameIndex++;
+int ifCachedDir( const char *path ) {
+	if( directoryIndex == -1) return 0 ;
 
-	strcpy( cachedFileNames[ fileNameIndex ], filename );
-	memset(&cachedFileStats[ fileNameIndex], 0, sizeof(struct stat));
+    char *ptr = (char *)path ;
 
-	cachedFileStats[fileNameIndex].st_mode = statptr->st_mode ;
-	cachedFileStats[fileNameIndex].st_atime = statptr->st_atime ;
-	cachedFileStats[fileNameIndex].st_mtime = statptr->st_mtime ;
-	cachedFileStats[fileNameIndex].st_size = statptr->st_size ;
-	cachedFileStats[fileNameIndex].st_blksize = statptr->st_blksize ;
-	cachedFileStats[fileNameIndex].st_uid = statptr->st_uid ;
-	cachedFileStats[fileNameIndex].st_gid = statptr->st_gid ;
-	cachedFileStats[fileNameIndex].st_nlink = statptr->st_nlink ;
+    for ( int ii = 0; ii <= directoryIndex; ii++ )
+        if ( strcmp( ptr+1, cachedDirectories[ ii ] ) == 0 )
+            return 1;
 
-
-	
-  	cachedFileIndex++;
-	strcpy( fileStuff[ cachedFileIndex ], "" );
-}
-
-int isCachedFileName( const char *path )
-{
-	
-	for ( int i = 0; i <= fileNameIndex; i++ )
-		if ( strcmp( path+1, cachedFileNames[ i ] ) == 0 ) return 1;
-	
-	return 0;
-}
-
-int getFileIndex( const char *path )
-{
-	
-	for ( int i = 0; i <= fileNameIndex; i++ )
-		if ( strcmp( path+1, cachedFileNames[ i ] ) == 0 )
-			return i;
-	
-	return -1;
+    return 0;
 }
 
 
-int getDirectoryIndex( const char *path )
-{
-	
-	for ( int i = 0; i <= directoryIndex; i++ )
-		if ( strcmp( path+1, cachedDirectories[ i ] ) == 0 )
-			return i;
-	
-	return -1;
+
+
+
+
+void addFileIntoCache( const char *filename, struct stat *statptr ) {
+	if(fileNameIndex+1 == TABLESIZE ) return ; 
+
+    fileNameIndex++;
+
+
+    strcpy( cachedFileNames[ fileNameIndex ], filename );
+    memset(&cachedFileStats[ fileNameIndex], 0, sizeof(struct stat));
+
+    cachedFileStats[fileNameIndex].st_mode = statptr->st_mode ;
+    cachedFileStats[fileNameIndex].st_atime = statptr->st_atime ;
+    cachedFileStats[fileNameIndex].st_mtime = statptr->st_mtime ;
+    cachedFileStats[fileNameIndex].st_size = statptr->st_size ;
+    cachedFileStats[fileNameIndex].st_blksize = statptr->st_blksize ;
+    cachedFileStats[fileNameIndex].st_uid = statptr->st_uid ;
+    cachedFileStats[fileNameIndex].st_gid = statptr->st_gid ;
+    cachedFileStats[fileNameIndex].st_nlink = statptr->st_nlink ;
+
+
+
+    cachedFileIndex++;
+    strcpy( fileStuff[ cachedFileIndex ], "" );
+}
+
+int isCachedFileName( const char *path ) {
+
+    for ( int i = 0; i <= fileNameIndex; i++ )
+        if ( strcmp( path+1, cachedFileNames[ i ] ) == 0 ) return 1;
+
+    return 0;
+}
+
+int getFileIndex( const char *path ) {
+
+    for ( int i = 0; i <= fileNameIndex; i++ )
+        if ( strcmp( path+1, cachedFileNames[ i ] ) == 0 )
+            return i;
+
+    return -1;
+}
+
+
+int getDirectoryIndex( const char *path ) {
+
+    for ( int i = 0; i <= directoryIndex; i++ )
+        if ( strcmp( path+1, cachedDirectories[ i ] ) == 0 )
+            return i;
+
+    return -1;
 }
 
 
 
 void writeFile( const char *path, const char *stuff ) {
 
-	int fileIndex = getFileIndex( path );
-	
-	if ( fileIndex == -1 ) return;
-		
-	strcpy( fileStuff[ fileIndex ], stuff ); 
+    int fileIndex = getFileIndex( path );
+
+    if ( fileIndex == -1 ) return;
+
+    strcpy( fileStuff[ fileIndex ], stuff );
 }
 
 // ... //
 
-static int do_getattr( const char *path, struct stat *st )
-{
-	st->st_uid = getuid(); 
-	st->st_gid = getgid(); 
-	st->st_atime = time( NULL ); 
-	st->st_mtime = time( NULL ); 
-	
-	if ( strcmp( path, "/" ) == 0 ) // || ifCachedDir( path ) == 1 )
-	{
-		st->st_mode = S_IFDIR | 0755;
-		st->st_nlink = 2; 
-	}
-	else if ( isCachedFileName( path ) == 1 )
-	{
-		int fileIndex =  getFileIndex( path );
+static int do_getattr( const char *path, struct stat *st ) {
+    st->st_uid = getuid();
+    st->st_gid = getgid();
+    st->st_atime = time( NULL );
+    st->st_mtime = time( NULL );
 
-		if ( fileIndex == -1 ) {
-			return -ENOENT;
-		} else {
-			st->st_mode = cachedFileStats[fileIndex].st_mode ;
-			st->st_nlink = cachedFileStats[fileIndex].st_mode ;
-			st->st_size = cachedFileStats[fileIndex].st_mode ;
-			st->st_blksize = cachedFileStats[fileIndex].st_blksize ;
-			st->st_size = cachedFileStats[fileIndex].st_size ;
-			st->st_nlink = cachedFileStats[fileIndex].st_nlink ;
+    if ( strcmp( path, "/" ) == 0 ) { // || ifCachedDir( path ) == 1 )
+        st->st_mode = S_IFDIR | 0755;
+        st->st_nlink = 2;
+    } else if ( isCachedFileName( path ) == 1 ) {
+        int fileIndex =  getFileIndex( path );
+
+        if ( fileIndex == -1 ) {
+            return -ENOENT;
+        } else {
+            st->st_mode = cachedFileStats[fileIndex].st_mode ;
+            st->st_nlink = cachedFileStats[fileIndex].st_mode ;
+            st->st_size = cachedFileStats[fileIndex].st_mode ;
+            st->st_blksize = cachedFileStats[fileIndex].st_blksize ;
+            st->st_size = cachedFileStats[fileIndex].st_size ;
+            st->st_nlink = cachedFileStats[fileIndex].st_nlink ;
+        }
+
+    } else if ( ifCachedDir( path ) == 1 ) {
+        int dirIndex =  getDirectoryIndex( path );
+
+        if ( dirIndex == -1 ) {
+            return -ENOENT;
+        }
+        st->st_mode = cachedDirStats[dirIndex].st_mode ;
+        st->st_nlink = cachedDirStats[dirIndex].st_mode ;
+        st->st_size = cachedDirStats[dirIndex].st_mode ;
+        st->st_blksize = cachedDirStats[dirIndex].st_blksize ;
+        st->st_size = cachedDirStats[dirIndex].st_size ;
+        st->st_nlink = cachedDirStats[dirIndex].st_nlink ;
+    } else {
+        return -ENOENT;
+    }
+
+    return 0;
+}
+
+
+
+
+static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi ) {
+    filler( buffer, ".", NULL, 0 );
+    filler( buffer, "..", NULL, 0 );
+
+    if ( strcmp( path, "/" ) == 0 ) {
+        for ( int i = 0; i <= directoryIndex; i++ )
+            filler( buffer, cachedDirectories[ i ], &cachedDirStats[i], 0 );
+
+        for ( int i = 0; i <= fileNameIndex; i++ )
+            filler( buffer, cachedFileNames[ i ], &cachedFileStats[i], 0 );
+    }
+
+    return 0;
+}
+
+static int do_readinmem( const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi ) {
+    int fileIndex ;
+
+    fileIndex = getFileIndex( path );
+	size_t  canserveSize = size ; 
+
+    if ( fileIndex == -1 ) return -1;
+
+    char *stuff = fileStuff[ fileIndex ];
+	struct stat *statPtr = &cachedFileStats[fileIndex] ; 
+
+	if(offset+size >= MAXCACHEFILESIZE ) {
+		canserveSize = MAXCACHEFILESIZE - offset;
+	} else {
+		canserveSize = size ;
+
+	}
+
+
+	log_msg("do_readinmem(): fileIndex:%d path: %s size:%ld offset:%ld \n",fileIndex,path, size, offset);
+	//log_fi(fi);
+	log_msg("stat->st_size = %ld\n",statPtr->st_size );
+
+	log_msg("Serving size = %ld\n",canserveSize);
+
+	for ( int t = 0 ; t < MAXCACHEFILESIZE ; t++) {
+		stuff[t] = '\0' ; 
+		switch(t) {
+			case 0 :
+				stuff[t] = 'x';
+				break ; 
+			case 1 :
+				stuff[t] = 'y';
+				break ;
+			case 2 :
+				stuff[t] = 'z';
+				break ;
+			default:
+				//stuff[t] = 'A' + (t-3)%26 ;
+				stuff[t] = t%256 ; 
+				break ; 
 		}
-
 	}
-	else if ( ifCachedDir( path ) == 1 )
-	{
-			int dirIndex =  getDirectoryIndex( path );
 
-			if ( dirIndex == -1 ) {
-				return -ENOENT;
-			}
-			st->st_mode = cachedDirStats[dirIndex].st_mode ;
-			st->st_nlink = cachedDirStats[dirIndex].st_mode ;
-			st->st_size = cachedDirStats[dirIndex].st_mode ;
-			st->st_blksize = cachedDirStats[dirIndex].st_blksize ;
-			st->st_size = cachedDirStats[dirIndex].st_size ;
-			st->st_nlink = cachedDirStats[dirIndex].st_nlink ;
-	}
-	else
-	{
-		return -ENOENT;
-	}
-	
-	return 0;
+	/*
+    memcpy( buffer, stuff + offset, size );
+    return strlen( stuff ) - offset;
+	*/
+
+	memcpy(buffer, stuff+offset,canserveSize);
+
+	int n = (canserveSize >= 3 )? 3 : canserveSize ; 
+
+	char *cptr = buffer ; 
+	strncpy(buffer,"PHL",n);
+	return canserveSize ; 
 }
 
+static int do_mkdir( const char *path, mode_t mode ) {
+    struct stat st ;
+    st.st_mode = 0755 | S_IFDIR ;
+    st.st_size = 0 ;
+    st.st_blksize = 4096 ;
+    st.st_uid = getuid() ;
+    st.st_gid = getgid() ;
+    st.st_atime = time(NULL) ;
+    st.st_mtime = time(NULL) ;
+    st.st_nlink = 2 ;
 
-
-
-static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi )
-{
-	filler( buffer, ".", NULL, 0 ); 
-	filler( buffer, "..", NULL, 0 ); 
-	
-	if ( strcmp( path, "/" ) == 0 ) 
-	{
-		for ( int i = 0; i <= directoryIndex; i++ )
-			filler( buffer, cachedDirectories[ i ], &cachedDirStats[i], 0 );
-	
-		for ( int i = 0; i <= fileNameIndex; i++ )
-			filler( buffer, cachedFileNames[ i ], &cachedFileStats[i], 0 );
-	}
-	
-	return 0;
+    addDirectoryEntry( path+1, &st );
+    return 0;
 }
 
-static int do_read( const char *path, char *buffer, size_t size, off_t offset, struct fuse_file_info *fi )
-{
-	int fileIndex ;
+static int do_mknod( const char *path, mode_t mode, dev_t rdev ) {
+    struct stat st ;
+    st.st_mode = 0644 | S_IFREG ;  // replace with mode
+    st.st_size = 0 ;
+    st.st_blksize = 4096 ;
+    st.st_uid = getuid() ;
+    st.st_gid = getgid() ;
+    st.st_atime = time(NULL) ;
+    st.st_mtime = time(NULL) ;
+    st.st_nlink = 1 ;
 
-	fileIndex = getFileIndex( path );
-	
-	if ( fileIndex == -1 ) return -1;
-	
-	char *stuff = fileStuff[ fileIndex ];
-	
-	memcpy( buffer, stuff + offset, size );
-		
-	return strlen( stuff ) - offset;
+    addFileIntoCache( path+1,&st );
+
+    return 0;
 }
 
-static int do_mkdir( const char *path, mode_t mode )
-{
-	struct stat st ;
-	st.st_mode = 0755 | S_IFDIR ; 
-	st.st_size = 0 ; 
-	st.st_blksize = 4096 ;
-	st.st_uid = getuid() ;
-	st.st_gid = getgid() ;
-	st.st_atime = time(NULL) ;
-	st.st_mtime = time(NULL) ;
-	st.st_nlink = 2 ; 
-
-	addDirectoryEntry( path+1, &st );
-	return 0;
-}
-
-static int do_mknod( const char *path, mode_t mode, dev_t rdev )
-{
-	struct stat st ;
-	st.st_mode = 0644 | S_IFREG ;  // replace with mode
-	st.st_size = 0 ; 
-	st.st_blksize = 4096 ;
-	st.st_uid = getuid() ;
-	st.st_gid = getgid() ;
-	st.st_atime = time(NULL) ;
-	st.st_mtime = time(NULL) ;
-	st.st_nlink = 1 ; 
-
-	addFileIntoCache( path+1,&st );
-	
-	return 0;
-}
-
-static int do_write( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info )
-{
-	writeFile( path, buffer );
-	return size;
+static int do_write( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info ) {
+    writeFile( path, buffer );
+    return size;
 }
 
 
 
 
 
-/* 
+/*
 **=================================== DHAP ENDS ==========================
 */
 
@@ -369,17 +407,16 @@ static int do_write( const char *path, const char *buffer, size_t size, off_t of
 
 
 
-int asm_getattr(const char *path, struct stat *statbuf)
-{
+int asm_getattr(const char *path, struct stat *statbuf) {
     int retstat;
     char fpath[PATH_MAX];
 
-	/*
+    /*
     log_msg("\nasm_getattr(path=\"%s\", statbuf=0x%08x)\n",
             path, statbuf);
-	*/
+    */
     asm_fullpath(fpath, path);
-	log_msg("\nasm_getattr:%s\n",path);
+    log_msg("\nasm_getattr:%s\n",path);
 
     /*if(strcmp(path,"/foo")==0)
     {
@@ -391,17 +428,16 @@ int asm_getattr(const char *path, struct stat *statbuf)
         //retstat=log_syscall("lstat", lstat(fpath, statbuf), 0);
         retstat=lstat(fpath, statbuf);
     }
-    
 
-	/*
+
+    /*
     log_stat(statbuf);
-	*/
+    */
 
     return retstat;
 }
 
-int bb_readlink(const char *path, char *link, size_t size)
-{
+int bb_readlink(const char *path, char *link, size_t size) {
     int retstat;
     char fpath[PATH_MAX];
 
@@ -410,8 +446,7 @@ int bb_readlink(const char *path, char *link, size_t size)
     asm_fullpath(fpath, path);
 
     retstat = log_syscall("readlink", readlink(fpath, link, size - 1), 0);
-    if (retstat >= 0)
-    {
+    if (retstat >= 0) {
         link[retstat] = '\0';
         retstat = 0;
         log_msg("    link=\"%s\"\n", link);
@@ -420,8 +455,7 @@ int bb_readlink(const char *path, char *link, size_t size)
     return retstat;
 }
 
-int bb_mknod(const char *path, mode_t mode, dev_t dev)
-{
+int bb_mknod(const char *path, mode_t mode, dev_t dev) {
     int retstat;
     char fpath[PATH_MAX];
 
@@ -429,13 +463,11 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
             path, mode, dev);
     asm_fullpath(fpath, path);
 
-    if (S_ISREG(mode))
-    {
+    if (S_ISREG(mode)) {
         retstat = log_syscall("open", open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode), 0);
         if (retstat >= 0)
             retstat = log_syscall("close", close(retstat), 0);
-    }
-    else if (S_ISFIFO(mode))
+    } else if (S_ISFIFO(mode))
         retstat = log_syscall("mkfifo", mkfifo(fpath, mode), 0);
     else
         retstat = log_syscall("mknod", mknod(fpath, mode, dev), 0);
@@ -443,8 +475,7 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
     return retstat;
 }
 
-int bb_mkdir(const char *path, mode_t mode)
-{
+int bb_mkdir(const char *path, mode_t mode) {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_mkdir(path=\"%s\", mode=0%3o)\n",
@@ -454,8 +485,7 @@ int bb_mkdir(const char *path, mode_t mode)
     return log_syscall("mkdir", mkdir(fpath, mode), 0);
 }
 
-int bb_unlink(const char *path)
-{
+int bb_unlink(const char *path) {
     char fpath[PATH_MAX];
 
     log_msg("bb_unlink(path=\"%s\")\n",
@@ -465,8 +495,7 @@ int bb_unlink(const char *path)
     return log_syscall("unlink", unlink(fpath), 0);
 }
 
-int bb_rmdir(const char *path)
-{
+int bb_rmdir(const char *path) {
     char fpath[PATH_MAX];
 
     log_msg("bb_rmdir(path=\"%s\")\n",
@@ -476,8 +505,7 @@ int bb_rmdir(const char *path)
     return log_syscall("rmdir", rmdir(fpath), 0);
 }
 
-int bb_symlink(const char *path, const char *link)
-{
+int bb_symlink(const char *path, const char *link) {
     char flink[PATH_MAX];
 
     log_msg("\nbb_symlink(path=\"%s\", link=\"%s\")\n",
@@ -487,8 +515,7 @@ int bb_symlink(const char *path, const char *link)
     return log_syscall("symlink", symlink(path, flink), 0);
 }
 
-int bb_rename(const char *path, const char *newpath)
-{
+int bb_rename(const char *path, const char *newpath) {
     char fpath[PATH_MAX];
     char fnewpath[PATH_MAX];
 
@@ -500,8 +527,7 @@ int bb_rename(const char *path, const char *newpath)
     return log_syscall("rename", rename(fpath, fnewpath), 0);
 }
 
-int bb_link(const char *path, const char *newpath)
-{
+int bb_link(const char *path, const char *newpath) {
     char fpath[PATH_MAX], fnewpath[PATH_MAX];
 
     log_msg("\nbb_link(path=\"%s\", newpath=\"%s\")\n",
@@ -512,8 +538,7 @@ int bb_link(const char *path, const char *newpath)
     return log_syscall("link", link(fpath, fnewpath), 0);
 }
 
-int bb_chmod(const char *path, mode_t mode)
-{
+int bb_chmod(const char *path, mode_t mode) {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_chmod(fpath=\"%s\", mode=0%03o)\n",
@@ -535,8 +560,7 @@ int bb_chown(const char *path, uid_t uid, gid_t gid)
     return log_syscall("chown", chown(fpath, uid, gid), 0);
 }
 
-int bb_truncate(const char *path, off_t newsize)
-{
+int bb_truncate(const char *path, off_t newsize) {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_truncate(path=\"%s\", newsize=%lld)\n",
@@ -546,8 +570,7 @@ int bb_truncate(const char *path, off_t newsize)
     return log_syscall("truncate", truncate(fpath, newsize), 0);
 }
 
-int bb_utime(const char *path, struct utimbuf *ubuf)
-{
+int bb_utime(const char *path, struct utimbuf *ubuf) {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_utime(path=\"%s\", ubuf=0x%08x)\n",
@@ -559,8 +582,7 @@ int bb_utime(const char *path, struct utimbuf *ubuf)
 
 /** File open operation
  */
-int asm_open(const char *path, struct fuse_file_info *fi)
-{
+int asm_open(const char *path, struct fuse_file_info *fi) {
     int retstat = 0;
     int fd;
     int fdtemp;
@@ -573,9 +595,9 @@ int asm_open(const char *path, struct fuse_file_info *fi)
     tptr=&pathintemp[0];
     uptr=&fullremoteuri[0];
 
-	/*
+    /*
     log_msg("\nasm_open(path\"%s\", fi=0x%08x)\n", path, fi);
-	*/
+    */
 
     asm_fullpath(fpath, path);
 
@@ -584,18 +606,18 @@ int asm_open(const char *path, struct fuse_file_info *fi)
     sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
 
     sprintf(pathintemp, "/tmp%s", path);
-	scpreadf(uptr,tptr);
+    scpreadf(uptr,tptr);
 
 
 
 
-	/*
+    /*
     fd = log_syscall("open", open(fpath, fi->flags), 0);
     if (fd < 0)
         retstat = log_error("open");
 
     fi->fh = fd;
-	*/
+    */
 
 
     fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
@@ -609,45 +631,42 @@ int asm_open(const char *path, struct fuse_file_info *fi)
     return retstat;
 }
 
-int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
-{
+int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     int retstat = 0;
 
     log_msg("\nasm_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
     // no need to get fpath on this one, since I work from fi->fh not the path
-	/*
+    /*
     log_fi(fi);
-	*/
+    */
 
 
     //return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 
-	retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
-	retstat = log_syscall("read",  read(fi->fh, buf, size),0);
+    retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
+    retstat = log_syscall("read",  read(fi->fh, buf, size),0);
 
-	//retstat = pread(fi->fh, buf,size,offset) ;
-	return retstat ;
+    //retstat = pread(fi->fh, buf,size,offset) ;
+    return retstat ;
 }
 
 int asm_write(const char *path, const char *buf, size_t size, off_t offset,
-             struct fuse_file_info *fi)
-{
+              struct fuse_file_info *fi) {
     int retstat = 0;
 
-	/*
+    /*
     log_msg("\nasm_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 
     return log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
-	*/
+    */
     return pwrite(fi->fh, buf, size, offset);
 }
 
-int bb_statfs(const char *path, struct statvfs *statv)
-{
+int bb_statfs(const char *path, struct statvfs *statv) {
     int retstat = 0;
     char fpath[PATH_MAX];
 
@@ -663,49 +682,47 @@ int bb_statfs(const char *path, struct statvfs *statv)
     return retstat;
 }
 
-int bb_flush(const char *path, struct fuse_file_info *fi)
-{
-	/*
+int bb_flush(const char *path, struct fuse_file_info *fi) {
+    /*
     log_msg("\nbb_flush(path=\"%s\", fi=0x%08x)\n", path, fi);
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
-	*/
+    */
 
     return 0;
 }
 
 /** Release an open file
  */
-int asm_release(const char *path, struct fuse_file_info *fi)
-{
+int asm_release(const char *path, struct fuse_file_info *fi) {
     log_msg("\nasm_release(path=\"%s\", fi=0x%08x)\n",
             path, fi);
-	/*
+    /*
     log_fi(fi);
-	*/
+    */
 
 
 
-	fsync(fi->fh);
+    fsync(fi->fh);
 
-	int retvalue = log_syscall("close", close(fi->fh), 0 );
+    int retvalue = log_syscall("close", close(fi->fh), 0 );
 
-	char rmcmd[300];
-	char fullremoteuri[5000];
-	char pathintemp[5000];
-	char *uptr = fullremoteuri ;
-	char *tptr = pathintemp ;
+    char rmcmd[300];
+    char fullremoteuri[5000];
+    char pathintemp[5000];
+    char *uptr = fullremoteuri ;
+    char *tptr = pathintemp ;
 
 
     sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
 
     sprintf(pathintemp, "/tmp%s", path);
-	scpwritef(tptr,uptr);
+    scpwritef(tptr,uptr);
 
-	sprintf(rmcmd,"rm -f /tmp%s",path);
-	log_msg("\nBBRELEASE rmcmd %s",rmcmd);
-	int cmdretval = system(rmcmd);
-	
+    sprintf(rmcmd,"rm -f /tmp%s",path);
+    log_msg("\nBBRELEASE rmcmd %s",rmcmd);
+    int cmdretval = system(rmcmd);
+
 
 
 
@@ -713,8 +730,7 @@ int asm_release(const char *path, struct fuse_file_info *fi)
     return retvalue ;
 }
 
-int bb_fsync(const char *path, int datasync, struct fuse_file_info *fi)
-{
+int bb_fsync(const char *path, int datasync, struct fuse_file_info *fi) {
     log_msg("\nbb_fsync(path=\"%s\", datasync=%d, fi=0x%08x)\n",
             path, datasync, fi);
     //log_fi(fi);
@@ -729,8 +745,7 @@ int bb_fsync(const char *path, int datasync, struct fuse_file_info *fi)
 
 #ifdef HAVE_SYS_XATTR_H
 
-int bb_setxattr(const char *path, const char *name, const char *value, size_t size, int flags)
-{
+int bb_setxattr(const char *path, const char *name, const char *value, size_t size, int flags) {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_setxattr(path=\"%s\", name=\"%s\", value=\"%s\", size=%d, flags=0x%08x)\n",
@@ -740,12 +755,11 @@ int bb_setxattr(const char *path, const char *name, const char *value, size_t si
     return log_syscall("lsetxattr", lsetxattr(fpath, name, value, size, flags), 0);
 }
 
-int bb_getxattr(const char *path, const char *name, char *value, size_t size)
-{
+int bb_getxattr(const char *path, const char *name, char *value, size_t size) {
     int retstat = 0;
     char fpath[PATH_MAX];
-	/* TODO */
-	return -1 ;
+    /* TODO */
+    return -1 ;
 
     log_msg("\nbb_getxattr(path = \"%s\", name = \"%s\", value = 0x%08x, size = %d)\n",
             path, name, value, size);
@@ -758,8 +772,7 @@ int bb_getxattr(const char *path, const char *name, char *value, size_t size)
     return retstat;
 }
 
-int bb_listxattr(const char *path, char *list, size_t size)
-{
+int bb_listxattr(const char *path, char *list, size_t size) {
     int retstat = 0;
     char fpath[PATH_MAX];
     char *ptr;
@@ -769,8 +782,7 @@ int bb_listxattr(const char *path, char *list, size_t size)
     asm_fullpath(fpath, path);
 
     retstat = log_syscall("llistxattr", llistxattr(fpath, list, size), 0);
-    if (retstat >= 0)
-    {
+    if (retstat >= 0) {
         log_msg("    returned attributes (length %d):\n", retstat);
         if (list != NULL)
             for (ptr = list; ptr < list + retstat; ptr += strlen(ptr) + 1)
@@ -782,8 +794,7 @@ int bb_listxattr(const char *path, char *list, size_t size)
     return retstat;
 }
 
-int bb_removexattr(const char *path, const char *name)
-{
+int bb_removexattr(const char *path, const char *name) {
     char fpath[PATH_MAX];
 
     log_msg("\nbb_removexattr(path=\"%s\", name=\"%s\")\n",
@@ -794,16 +805,15 @@ int bb_removexattr(const char *path, const char *name)
 }
 #endif
 
-int bb_opendir(const char *path, struct fuse_file_info *fi)
-{
+int bb_opendir(const char *path, struct fuse_file_info *fi) {
     DIR *dp;
     int retstat = 0;
     char fpath[PATH_MAX];
 
-	/*
+    /*
     log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n",
             path, fi);
-	*/
+    */
     asm_fullpath(fpath, path);
 
     dp = opendir(fpath);
@@ -820,18 +830,17 @@ int bb_opendir(const char *path, struct fuse_file_info *fi)
 
 
 int asm_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
-               struct fuse_file_info *fi)
-{
+                struct fuse_file_info *fi) {
     int retstat = 0;
     DIR *dp;
     struct dirent *de;
 
-	/*
+    /*
     log_msg("\nasm_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
             path, buf, filler, offset, fi);
     // once again, no need for fullpath -- but note that I need to cast fi->fh
 
-	*/
+    */
 
 
     dp = (DIR *)(uintptr_t)fi->fh;
@@ -839,10 +848,9 @@ int asm_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     de = readdir(dp);
 
 
-	
+
     //log_msg("    readdir returned 0x%p\n", de);
-    if (de == 0)
-    {
+    if (de == 0) {
         retstat = log_error("asm_readdir readdir");
         return retstat;
     }
@@ -851,11 +859,9 @@ int asm_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     {
         filler(buf, "foo", NULL, 0);
     }*/
-    do
-    {
+    do {
         //log_msg("calling filler with name %s\n", de->d_name);
-        if (filler(buf, de->d_name, NULL, 0) != 0)
-        {
+        if (filler(buf, de->d_name, NULL, 0) != 0) {
             log_msg("    ERROR asm_readdir filler:  buffer full");
             return -ENOMEM;
         }
@@ -866,23 +872,21 @@ int asm_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offse
     return retstat;
 }
 
-int bb_releasedir(const char *path, struct fuse_file_info *fi)
-{
+int bb_releasedir(const char *path, struct fuse_file_info *fi) {
     int retstat = 0;
 
     log_msg("\nbb_releasedir(path=\"%s\", fi=0x%08x)\n",
             path, fi);
-	/*
+    /*
     log_fi(fi);
-	*/
+    */
 
     closedir((DIR *)(uintptr_t)fi->fh);
 
     return retstat;
 }
 
-int bb_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi)
-{
+int bb_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi) {
     int retstat = 0;
 
     log_msg("\nbb_fsyncdir(path=\"%s\", datasync=%d, fi=0x%08x)\n",
@@ -892,25 +896,22 @@ int bb_fsyncdir(const char *path, int datasync, struct fuse_file_info *fi)
     return retstat;
 }
 
-void *asm_init(struct fuse_conn_info *conn)
-{
+void *asm_init(struct fuse_conn_info *conn) {
     log_msg("\nasm_init()\n");
 
     log_conn(conn);
     log_fuse_context(fuse_get_context());
 
-	listAndRemoteDirNames() ;
+    listAndRemoteDirNames() ;
 
     return ASM_DATA;
 }
 
-void asm_destroy(void *userdata)
-{
+void asm_destroy(void *userdata) {
     log_msg("\nasm_destroy(userdata=0x%08x)\n", userdata);
 }
 
-int bb_access(const char *path, int mask)
-{
+int bb_access(const char *path, int mask) {
     int retstat = 0;
     char fpath[PATH_MAX];
 
@@ -930,8 +931,7 @@ int bb_access(const char *path, int mask)
 /**
  * Change the size of an open file
  */
-int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
-{
+int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi) {
     int retstat = 0;
 
     log_msg("\nbb_ftruncate(path=\"%s\", offset=%lld, fi=0x%08x)\n",
@@ -949,8 +949,7 @@ int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
  * Get attributes from an open file
  *
  */
-int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi)
-{
+int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *fi) {
     int retstat = 0;
 
     log_msg("\nbb_fgetattr(path=\"%s\", statbuf=0x%08x, fi=0x%08x)\n",
@@ -978,38 +977,35 @@ struct fuse_operations bb_oper = {
     .open = asm_open,
     .read = asm_read,
     .write = asm_write,
-	/*
+    /*
     .release = asm_release,
     .init = asm_init,
     .destroy = asm_destroy,
-	*/
+    */
 };
 
 
 
 static struct fuse_operations ammiops = {
-		 .getattr    = do_getattr,
-		 .readdir    = do_readdir,
-		 .read       = do_read,
-		 .mkdir      = do_mkdir,
-		 .mknod      = do_mknod,
-		 .write      = do_write,
-		 .init 		 = asm_init,
- };
+    .getattr    = do_getattr,
+    .readdir    = do_readdir,
+    .read       = do_readinmem,
+    .mkdir      = do_mkdir,
+    .mknod      = do_mknod,
+    .write      = do_write,
+    .init 		 = asm_init,
+};
 
-void asm_usage()
-{
+void asm_usage() {
     fprintf(stderr, "usage:  ammifs remotehost remoteuser rootDir mountPoint\n");
     abort();
 }
 
-int main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
     int fuse_stat;
     struct asm_state *asm_data;
 
-    if ((getuid() == 0) || (geteuid() == 0))
-    {
+    if ((getuid() == 0) || (geteuid() == 0)) {
         fprintf(stderr, "Running BBFS as root opens unnacceptable security holes\n");
         return 1;
     }
@@ -1020,8 +1016,7 @@ int main(int argc, char *argv[])
         asm_usage();
 
     asm_data = malloc(sizeof(struct asm_state));
-    if (asm_data == NULL)
-    {
+    if (asm_data == NULL) {
         perror("main calloc");
         abort();
     }
