@@ -230,7 +230,7 @@ int getDirectoryIndex( const char *path ) {
 
 
 
-void writeFile( const char *path, const char *stuff ) {
+size_t writeFile( const char *path, const char *stuff ) {
 
     int fileIndex = getFileIndex( path );
 
@@ -390,18 +390,53 @@ static int do_mknod( const char *path, mode_t mode, dev_t rdev ) {
     return 0;
 }
 
-static int do_write( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info ) {
+static int do_writeinmem( const char *path, const char *buffer, size_t size, off_t offset, struct fuse_file_info *info ) {
+
+    int fileIndex ;
+
+    fileIndex = getFileIndex( path );
+	size_t  canWriteSize = size ; 
+	size_t  newFileSize ;
+
+	log_msg("do_writeinmem(): fileIndex:%d path: %s size:%ld offset:%ld \n",fileIndex,path, size, offset);
+	//log_fi(fi);
+
+    if ( fileIndex == -1 ) return -1;
+
+    char *stuff = fileStuff[ fileIndex ];
+	struct stat *statPtr = &cachedFileStats[fileIndex] ; 
+
+	if(offset+size >= MAXCACHEFILESIZE ) {
+		canWriteSize = MAXCACHEFILESIZE - offset;
+		newFileSize = MAXCACHEFILESIZE ;
+	} else {
+		canWriteSize = size ;
+		newFileSize = offset+size ; 
+	}
+
+	log_msg("stat->st_size = %ld\n",statPtr->st_size );
+
+	log_msg("Can write size = %ld\n",canWriteSize);
+
+	statPtr->st_size = newFileSize ; 
+	statPtr->st_mtime = time(NULL);
+	statPtr->st_atime = time(NULL);
+
+	/*
+    memcpy( buffer, stuff + offset, size );
+    return strlen( stuff ) - offset;
+	*/
+
+	memcpy(stuff+offset, buffer, canWriteSize);
     writeFile( path, buffer );
-    return size;
+
+	return canWriteSize ; 
 }
 
 
 
 
 
-/*
-**=================================== DHAP ENDS ==========================
-*/
 
 
 
@@ -987,13 +1022,19 @@ struct fuse_operations bb_oper = {
 
 
 static struct fuse_operations ammiops = {
+    .init 		 = asm_init,
+    .mkdir      = do_mkdir,
+
+    .mknod      = do_mknod,
     .getattr    = do_getattr,
     .readdir    = do_readdir,
+
     .read       = do_readinmem,
-    .mkdir      = do_mkdir,
-    .mknod      = do_mknod,
-    .write      = do_write,
-    .init 		 = asm_init,
+    .write      = do_writeinmem,
+	/*
+    .read       = asm_read,
+    .write      = asm_write,
+	*/
 };
 
 void asm_usage() {

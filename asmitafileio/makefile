@@ -88,11 +88,11 @@ remotescp:  remotescp_debug.o
 
 
 
-test:	filetest1 filetest2 filetest3
+test:	filetest1 filetest2 filetest3 filetest4
 	echo "building test suits"
 
 testclean:
-	rm -f filetest1 filetest2 filetest3
+	rm -f filetest1 filetest2 filetest3 filetest4
 
 
 filetest1: 	filetest1.o
@@ -105,3 +105,5 @@ filetest2: 	filetest2.o
 filetest3: 	filetest3.o
 	gcc -o filetest3  filetest3.o
 
+filetest4: 	filetest4.o
+	gcc -o filetest4  filetest4.o
