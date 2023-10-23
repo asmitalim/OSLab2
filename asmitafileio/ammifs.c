@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #ifdef HAVE_SYS_XATTR_H
 #include <sys/xattr.h>
@@ -39,8 +40,7 @@
 
 static void asm_fullpath(char fpath[PATH_MAX], const char *path) {
     strcpy(fpath, ASM_DATA->rootdir);
-    strncat(fpath, path, PATH_MAX); // ridiculously long paths will
-    // break here
+    strncat(fpath, path, PATH_MAX);
 
     log_msg("    asm_fullpath:  rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
             ASM_DATA->rootdir, path, fpath);
@@ -59,7 +59,7 @@ static void asm_fullpath(char fpath[PATH_MAX], const char *path) {
 #include <time.h>
 
 
-#define MAXCACHEFILESIZE 8192 
+#define MAXCACHEFILESIZE 8192
 
 #define TABLESIZE 256
 #define MAXNAMESIZE 1024
@@ -75,6 +75,15 @@ struct stat cachedFileStats[TABLESIZE] ;
 
 int  cachedFileIndex = -1;
 char fileStuff[ TABLESIZE ][ MAXCACHEFILESIZE ];
+
+typedef struct {
+    int refcount ; // refcount
+    int fds[10] ;  // open fds
+    int rws[10] ;  // if RD or RDWR
+    int fdcounts ; // valid numbers in open fds
+} FileMetaData ;
+
+FileMetaData  meta[TABLESIZE] ;  
 
 
 
@@ -98,18 +107,18 @@ void listAndRemoteDirNames() {
 
         char *ptr = strtok(str,delim);
 
-        log_msg("Getting all tokens split using slash n\n");
+        //log_msg("Getting all tokens split using slash n\n");
 
         while(ptr != NULL) {
-            log_msg("ptr[%s]\n",ptr);
+            //log_msg("ptr[%s]\n",ptr);
 
             char remoteXName[300] ;
             sprintf(remoteXName,"/%s",ptr);
 
 
-            log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
+            //log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
             int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
-            log_stat(&statbuf);
+            //log_stat(&statbuf);
 
 
             if( x == 0 ) {
@@ -137,7 +146,7 @@ void listAndRemoteDirNames() {
 
 void addDirectoryEntry( const char *remoteDirName, struct stat *statptr ) {
 
-	if(directoryIndex + 1 == TABLESIZE) return ;
+    if(directoryIndex + 1 == TABLESIZE) return ;
 
 
     directoryIndex++;
@@ -156,12 +165,40 @@ void addDirectoryEntry( const char *remoteDirName, struct stat *statptr ) {
 }
 
 
+/*
+** Outstanding issues
+**
+**	open
+		x implement
+		x open with name.cached file , if already there , do not download again
+		x if not there , download, create and update the remotestat
 
+		- open read write keep handle in fuse.
+		x second open read/write - error
+		- second open readonly allowed - keep handle in cache.
+		- when read or writ modify the direntry of the open file.
+		- keep open reference count cache - fd and sequence of open called.
+
+	read
+		x implment pread to the local handle ( passthrough )
+
+	write
+		x implement write to the local handle ( pass through )
+
+	close
+		x for close without rw,  do not copy back
+		x or for the close which is for the rw file, copy the file.
+		- allow read to continue
+		- if matching close do not copy back the file.
+		x implement release
+**
+**
+*/
 
 
 
 int ifCachedDir( const char *path ) {
-	if( directoryIndex == -1) return 0 ;
+    if( directoryIndex == -1) return 0 ;
 
     char *ptr = (char *)path ;
 
@@ -173,12 +210,8 @@ int ifCachedDir( const char *path ) {
 }
 
 
-
-
-
-
 void addFileIntoCache( const char *filename, struct stat *statptr ) {
-	if(fileNameIndex+1 == TABLESIZE ) return ; 
+    if(fileNameIndex+1 == TABLESIZE ) return ;
 
     fileNameIndex++;
 
@@ -194,6 +227,9 @@ void addFileIntoCache( const char *filename, struct stat *statptr ) {
     cachedFileStats[fileNameIndex].st_uid = statptr->st_uid ;
     cachedFileStats[fileNameIndex].st_gid = statptr->st_gid ;
     cachedFileStats[fileNameIndex].st_nlink = statptr->st_nlink ;
+
+    meta[fileNameIndex].fdcounts = 0 ;
+    meta[fileNameIndex].refcount = 0 ;
 
 
 
@@ -229,17 +265,31 @@ int getDirectoryIndex( const char *path ) {
 }
 
 
-
-size_t writeFile( const char *path, const char *stuff ) {
+size_t writeFile( const char *path, const char *stuff, size_t size ) {
 
     int fileIndex = getFileIndex( path );
+    log_msg("writeFile:%s,size = %ld\n",size);
 
-    if ( fileIndex == -1 ) return;
+    if ( fileIndex == -1 ) return -1;
 
-    strcpy( fileStuff[ fileIndex ], stuff );
+
+    if(size == 0 ) return 0 ;
+
+    //strcpy( fileStuff[ fileIndex ], stuff );
+    char *dptr = fileStuff[fileIndex] ;
+    char *sptr = stuff ;
+
+    size_t n = size ;
+
+    for( size_t xx = 0 ; xx < size ; xx++) {
+        *dptr++ = *sptr++ ;
+    }
+
+
+    return n ;
+
 }
 
-// ... //
 
 static int do_getattr( const char *path, struct stat *st ) {
     st->st_uid = getuid();
@@ -284,8 +334,6 @@ static int do_getattr( const char *path, struct stat *st ) {
 }
 
 
-
-
 static int do_readdir( const char *path, void *buffer, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi ) {
     filler( buffer, ".", NULL, 0 );
     filler( buffer, "..", NULL, 0 );
@@ -305,58 +353,93 @@ static int do_readinmem( const char *path, char *buffer, size_t size, off_t offs
     int fileIndex ;
 
     fileIndex = getFileIndex( path );
-	size_t  canserveSize = size ; 
+    size_t  canserveSize = size ;
+    size_t  existingFileSize ;
+
 
     if ( fileIndex == -1 ) return -1;
 
+
     char *stuff = fileStuff[ fileIndex ];
-	struct stat *statPtr = &cachedFileStats[fileIndex] ; 
+    struct stat *statPtr = &cachedFileStats[fileIndex] ;
 
-	if(offset+size >= MAXCACHEFILESIZE ) {
-		canserveSize = MAXCACHEFILESIZE - offset;
-	} else {
-		canserveSize = size ;
+    if(offset >= MAXCACHEFILESIZE ) {
+        canserveSize = 0 ;
+    } else if(offset+size >= MAXCACHEFILESIZE ) {
+        canserveSize = MAXCACHEFILESIZE - offset;
+    } else {
+        canserveSize = size ;
+    }
 
-	}
 
 
-	log_msg("do_readinmem(): fileIndex:%d path: %s size:%ld offset:%ld \n",fileIndex,path, size, offset);
-	//log_fi(fi);
-	log_msg("stat->st_size = %ld\n",statPtr->st_size );
 
-	log_msg("Serving size = %ld\n",canserveSize);
 
-	for ( int t = 0 ; t < MAXCACHEFILESIZE ; t++) {
-		stuff[t] = '\0' ; 
-		switch(t) {
-			case 0 :
-				stuff[t] = 'x';
-				break ; 
-			case 1 :
-				stuff[t] = 'y';
-				break ;
-			case 2 :
-				stuff[t] = 'z';
-				break ;
-			default:
-				//stuff[t] = 'A' + (t-3)%26 ;
-				stuff[t] = t%256 ; 
-				break ; 
-		}
-	}
+    existingFileSize = statPtr->st_size ;
 
-	/*
+
+    size_t finalSize ;
+    if(offset >= existingFileSize ) {
+        finalSize = 0 ;
+    } else if( offset+canserveSize >=existingFileSize) {
+        finalSize = existingFileSize - offset ;
+    } else {
+        finalSize = canserveSize ;
+    }
+
+    log_msg("do_readinmem(): fileIndex:%d path: %s size:%ld offset:%ld \n",fileIndex,path, size, offset);
+    //log_fi(fi);
+    log_msg("stat->st_size = %ld\n",statPtr->st_size );
+
+    log_msg("Serving size = %ld\n",canserveSize);
+    log_msg("Final Serve size = %ld\n",finalSize);
+
+
+    if ( finalSize == 0 ) return 0 ;
+
+
+
+
+    /*
+
+    	for ( int t = 0 ; t < MAXCACHEFILESIZE ; t++) {
+    		stuff[t] = '\0' ;
+    		switch(t) {
+    			case 0 :
+    				stuff[t] = 'x';
+    				break ;
+    			case 1 :
+    				stuff[t] = 'y';
+    				break ;
+    			case 2 :
+    				stuff[t] = 'z';
+    				break ;
+    			default:
+    				//stuff[t] = 'A' + (t-3)%26 ;
+    				stuff[t] = t%256 ;
+    				break ;
+    		}
+    	}
+
+    */
+
+    /*
     memcpy( buffer, stuff + offset, size );
     return strlen( stuff ) - offset;
-	*/
+    */
 
-	memcpy(buffer, stuff+offset,canserveSize);
+    memcpy(buffer, stuff+offset,finalSize);
 
-	int n = (canserveSize >= 3 )? 3 : canserveSize ; 
+    /*
+    	int n = (canserveSize >= 3 )? 3 : canserveSize ;
 
-	char *cptr = buffer ; 
-	strncpy(buffer,"PHL",n);
-	return canserveSize ; 
+    	char *cptr = buffer ;
+    	strncpy(buffer,"PHL",n);
+    */
+
+
+
+    return (int) finalSize ;
 }
 
 static int do_mkdir( const char *path, mode_t mode ) {
@@ -395,52 +478,60 @@ static int do_writeinmem( const char *path, const char *buffer, size_t size, off
     int fileIndex ;
 
     fileIndex = getFileIndex( path );
-	size_t  canWriteSize = size ; 
-	size_t  newFileSize ;
+    size_t  canWriteSize = size ;
+    size_t  newFileSize ;
 
-	log_msg("do_writeinmem(): fileIndex:%d path: %s size:%ld offset:%ld \n",fileIndex,path, size, offset);
-	//log_fi(fi);
+    log_msg("do_writeinmem(): fileIndex:%d path: %s size:%ld offset:%ld \n",fileIndex,path, size, offset);
+    //log_fi(fi);
 
     if ( fileIndex == -1 ) return -1;
 
     char *stuff = fileStuff[ fileIndex ];
-	struct stat *statPtr = &cachedFileStats[fileIndex] ; 
+    struct stat *statPtr = &cachedFileStats[fileIndex] ;
 
-	if(offset+size >= MAXCACHEFILESIZE ) {
-		canWriteSize = MAXCACHEFILESIZE - offset;
-		newFileSize = MAXCACHEFILESIZE ;
-	} else {
-		canWriteSize = size ;
-		newFileSize = offset+size ; 
-	}
+    size_t existingFileSize = statPtr->st_size ;
 
-	log_msg("stat->st_size = %ld\n",statPtr->st_size );
+    if(offset >= MAXCACHEFILESIZE ) {
+        canWriteSize = 0 ;
+        newFileSize = MAXCACHEFILESIZE ;
+    } else if(offset+size >= MAXCACHEFILESIZE ) {
+        canWriteSize = MAXCACHEFILESIZE - offset;
+        newFileSize = MAXCACHEFILESIZE ;
 
-	log_msg("Can write size = %ld\n",canWriteSize);
+    } else {
+        canWriteSize = size ;
+        newFileSize = offset+size ;
+    }
+    if(newFileSize < existingFileSize) {
+        newFileSize = existingFileSize;
+    }
 
-	statPtr->st_size = newFileSize ; 
-	statPtr->st_mtime = time(NULL);
-	statPtr->st_atime = time(NULL);
+    log_msg("do_writeinmem():existing stat->st_size = %ld\n",statPtr->st_size );
+    log_msg("do_writeinmem():Can write size = %ld\n",canWriteSize);
 
-	/*
+
+    statPtr->st_size = newFileSize ;
+    statPtr->st_mtime = time(NULL);
+    statPtr->st_atime = time(NULL);
+
+    log_msg("do_writeinmem():after modification stat->st_size = %ld\n",statPtr->st_size );
+
+    /*
     memcpy( buffer, stuff + offset, size );
     return strlen( stuff ) - offset;
-	*/
+    */
 
-	memcpy(stuff+offset, buffer, canWriteSize);
-    writeFile( path, buffer );
+    log_msg("do_writeinmem():Before copying offset:%ld size:%ld\n",offset,canWriteSize);
 
-	return canWriteSize ; 
+    if(canWriteSize == 0 ) return 0 ;
+
+    memcpy(stuff+offset, buffer, canWriteSize);
+
+    //int writtenSize = writeFile( path, buffer, canWriteSize );
+    int writtenSize = canWriteSize ;
+
+    return writtenSize ;
 }
-
-
-
-
-
-
-
-
-
 
 int asm_getattr(const char *path, struct stat *statbuf) {
     int retstat;
@@ -615,8 +706,125 @@ int bb_utime(const char *path, struct utimbuf *ubuf) {
     return log_syscall("utime", utime(fpath, ubuf), 0);
 }
 
-/** File open operation
- */
+
+
+
+
+
+
+
+
+/*
+**  do_open a preferred way of opening
+*/
+int do_open(const char *path, struct fuse_file_info *fi) {
+
+    int retstat = 0; // the sys call return state
+    int fd;
+    int fdtemp; 
+
+
+    char fpath[PATH_MAX];
+    char pathintemp[PATH_MAX];
+    char* tptr = pathintemp;
+
+
+    char fullremoteuri[PATH_MAX];
+    char* uptr = fullremoteuri;
+
+
+    log_msg("\ndo_open(path\"%s\", fi=0x%08x)\n", path, fi);
+    log_fi(fi);
+
+
+
+    asm_fullpath(fpath, path);
+
+
+	// 1  if inode entry exists
+
+	/*
+		update the size of localstat from remote ( not the content ) 
+		check if it is first local open
+			if it is first open 
+				copy the file over the cached
+				update the size entry of the inode
+				increment the reference and rw mode in the filename table
+				call the open with flags
+			if the subsequent open
+				open the cache file
+				increment the reference and rw mode with file handle for the file
+				call the open with flags.
+				
+	*/
+
+
+    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
+    sprintf(pathintemp, "%s.cached", fpath);
+
+    log_msg("do_open():cached content is in %s\n",pathintemp);
+    log_msg("do_open():remote content is in %s\n", fullremoteuri);
+
+    // TODO Update the remotestat here
+
+
+    // check if the cached file exists if yes then open and return ( do not copy using scp )
+    //scpreadf(uptr,tptr);
+
+	// open will fail if the remote file is not braught into the cache
+
+
+    fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
+    log_msg("do_open(): (1) %s opened with %d\n",pathintemp,fdtemp);
+
+
+
+	// if the open fails
+    if (fdtemp < 0) {
+        retstat = log_error("open");
+
+        int scpOk = scpreadf(uptr,tptr);
+
+        log_msg("do_open(): no cached file found\n");
+        if( scpOk < 0 ) {
+            log_error("scp read");
+        }
+
+
+        // file was not there that is the first time when the first open should bring the file in cache
+        // now as the file exists it should open the file, if file is not there now also then return error
+        int secondfd = log_syscall("open", open(pathintemp, fi->flags), 0);
+        if( secondfd < 0 )  {
+            retstat = log_error("open[remote]");
+        }
+        //log_msg("do_open(): (2) %s opened with %d\n",pathintemp,secondfd);
+
+        fi->fh = secondfd ;
+        log_msg("do_open():(second fd:%d) before returning\n",secondfd);
+        log_fi(fi);
+        return retstat ;
+
+
+
+    } else {
+        fi->fh = fdtemp;
+        log_msg("do_open():(first fd:%d) before returning\n",fdtemp);
+        log_fi(fi);
+        return retstat ;
+    }
+    // should have returned by this time
+
+
+
+}
+
+
+
+
+/*
+** NOT TO BE USED
+*/
+
 int asm_open(const char *path, struct fuse_file_info *fi) {
     int retstat = 0;
     int fd;
@@ -639,7 +847,6 @@ int asm_open(const char *path, struct fuse_file_info *fi) {
 
 
     sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
-
     sprintf(pathintemp, "/tmp%s", path);
     scpreadf(uptr,tptr);
 
@@ -666,12 +873,33 @@ int asm_open(const char *path, struct fuse_file_info *fi) {
     return retstat;
 }
 
+
+
+
+int do_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+    /*
+    **  this is the write function to be used
+    */
+
+    int retstat = 0;
+
+    log_msg("\ndo_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+            path, buf, size, offset, fi);
+
+    //log_fi(fi);
+
+    return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
+
+}
+
+
+
 int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
     int retstat = 0;
 
     log_msg("\nasm_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
-    // no need to get fpath on this one, since I work from fi->fh not the path
+
     /*
     log_fi(fi);
     */
@@ -679,26 +907,54 @@ int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
     //return log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 
-    retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
-    retstat = log_syscall("read",  read(fi->fh, buf, size),0);
+    //retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
+    //retstat = log_syscall("read",  read(fi->fh, buf, size),0);
 
     //retstat = pread(fi->fh, buf,size,offset) ;
+    // TODO Update the cached stat buffer with the file's stat ( required or not required )
     return retstat ;
 }
 
+
+
+
+
+int do_write(const char *path, const char *buf, size_t size, off_t offset,
+             struct fuse_file_info *fi) {
+
+
+    /*
+    **  this is the write function to be used
+    **
+    **	am i supposed to logged in
+    */
+    int retstat = 0;
+
+    log_msg("\ndo_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+            path, buf, size, offset, fi);
+    //log_fi(fi);
+
+    retstat = log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
+
+    return retstat ;
+}
+
+
+
+/*
+*  NOT USED
+*/
 int asm_write(const char *path, const char *buf, size_t size, off_t offset,
               struct fuse_file_info *fi) {
     int retstat = 0;
 
-    /*
     log_msg("\nasm_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
-    // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 
-    return log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
-    */
-    return pwrite(fi->fh, buf, size, offset);
+    retstat = log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
+
+    return retstat ;
 }
 
 int bb_statfs(const char *path, struct statvfs *statv) {
@@ -727,18 +983,134 @@ int bb_flush(const char *path, struct fuse_file_info *fi) {
     return 0;
 }
 
-/** Release an open file
- */
+
+
+int do_release(const char *path, struct fuse_file_info *fi) {
+    int retvalue ;
+    static int  backnumber = 0 ;
+    char fullremoteuri[PATH_MAX];
+    char *uptr = fullremoteuri ;
+
+
+    char pathintemp[PATH_MAX];
+    char *pathInTempPtr = pathintemp ;
+    char *tptr = pathintemp ;
+
+
+    char rmcmd[PATH_MAX];
+
+    char fpath[PATH_MAX];
+
+    /*
+    *
+    *    This is the one chosen
+    */
+
+    //todo if opened for read, do not writeback the file using scp
+    // todo if opened for write, the writeback the file using scp
+
+    // avoid multiple write
+
+
+    log_msg("\ndo_release(path=\"%s\", fi=0x%08x)\n",
+            path, fi);
+
+    log_fi(fi);
+    asm_fullpath(fpath, path);
+
+
+	// keep ready the paths for writing it back if needed.
+	sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
+	sprintf(pathInTempPtr, "%s.cached", fpath);
+
+
+
+    log_msg("flags = %x O_RDWR %o %x, O_RDONLY %o %x\n",fi->flags,O_RDWR, O_RDWR, O_RDONLY,O_RDONLY);
+
+
+    if( (fi->flags & 0xff )  == O_RDONLY ) {
+		// readonly so just call the close 
+        log_msg("release():flags = %x, releasing the fd with RDONLY\n",fi->flags);
+        retvalue = log_syscall("close", close(fi->fh), 0 );
+
+
+    } else if( (fi->flags & 0xff) == O_RDWR )  {
+        log_msg("release():releasing the fd with RDW\n");
+        log_msg("release():flags = %x, releasing the fd with RDWR\n",fi->flags);
+
+		// sync the buffers back
+        fsync(fi->fh);
+        fsync(fi->fh);
+
+		// close the file
+        retvalue = log_syscall("close", close(fi->fh), 0 );
+
+
+		// prepare the copy path
+        sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
+        sprintf(pathInTempPtr, "%s.cached", fpath);
+
+        log_msg("release: Writing back src:%s back to dst:%s\n",pathintemp, fullremoteuri);
+
+		// carry out the scp  from "/temp/.. (tptr)  to "remote" (uptr)
+        int scpretval = scpwritef(tptr,uptr);
+        if(scpretval < 0 ) {
+            log_error("scpwritef failed");
+        }
+
+
+    }
+
+    else {
+        log_msg("relesae(): handling not rdwr and not RDONLY\n");
+        fsync(fi->fh);
+        fsync(fi->fh);
+
+		// TODO do you want to check if we need to write back here?
+
+        retvalue = log_syscall("close", close(fi->fh), 0 );
+
+    }
+
+	// TODO to remove the cache file is yet to be implemeneed
+
+	if( 0 ) {
+
+        //if we need to get some back of the cached file.
+        //sprintf(rmcmd,"cp %s %s.back%06d ; rm -f %s",pathInTempPtr, pathInTempPtr,backnumber,pathInTempPtr); backnumber++ ;
+
+		//log_msg("\ndo_release(): file is removed with %s",rmcmd);
+		sprintf(rmcmd,"rm -f %s",pathInTempPtr); // typically /tmp/localroot/<file>.cached 
+		int cmdretval = system(rmcmd);
+	}
+
+	// TODO can we sync the stat from remore  before we call it close 
+
+
+
+
+	// finally return the syscall return value
+	return retvalue ; 
+
+	/* ------------------------- Done -------------------------------- */
+
+
+}
+
+
+
+
+/*
+**  NOT TO BE USED
+*/
 int asm_release(const char *path, struct fuse_file_info *fi) {
     log_msg("\nasm_release(path=\"%s\", fi=0x%08x)\n",
             path, fi);
-    /*
     log_fi(fi);
-    */
 
 
 
-    fsync(fi->fh);
+    //fsync(fi->fh);
 
     int retvalue = log_syscall("close", close(fi->fh), 0 );
 
@@ -751,7 +1123,7 @@ int asm_release(const char *path, struct fuse_file_info *fi) {
 
     sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
 
-    sprintf(pathintemp, "/tmp%s", path);
+    sprintf(pathintemp, "/tmp/localroot%s", path);
     scpwritef(tptr,uptr);
 
     sprintf(rmcmd,"rm -f /tmp%s",path);
@@ -1029,12 +1401,17 @@ static struct fuse_operations ammiops = {
     .getattr    = do_getattr,
     .readdir    = do_readdir,
 
+    /*
     .read       = do_readinmem,
     .write      = do_writeinmem,
-	/*
     .read       = asm_read,
     .write      = asm_write,
-	*/
+    */
+    .read       = do_read,
+    .write      = do_write,
+
+    .open 		= do_open,
+    .release    = do_release,
 };
 
 void asm_usage() {
@@ -1052,6 +1429,10 @@ int main(int argc, char *argv[]) {
     }
 
     fprintf(stderr, "Fuse library version %d.%d\n", FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
+
+	for ( int tt = 0 ; tt < argc ; tt++) {
+		fprintf(stderr,"%s\n",argv[tt]);
+	}
 
     if ((argc < 5) || (argv[argc - 2][0] == '-') || (argv[argc - 1][0] == '-'))
         asm_usage();
@@ -1088,12 +1469,16 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "parameters fuse_main\n");
     fprintf(stderr, "remoteuser:%s\n", asm_data->remoteuser);
     fprintf(stderr, "remoteHost:%s\n", asm_data->remotehostname);
+    fprintf(stderr, "rootdir:%s\n", asm_data->rootdir);
 
 
-    fprintf(stderr, "argc %d\n", argc);
-    for( int x =  0 ; x < argc ; x++) {
-        fprintf(stderr, "Arguments [%d] is %s\n",x,argv[x]);
-    }
+	static char mkdirbuf[PATH_MAX] ; 
+	char *mkdirptr  = &mkdirbuf[0] ;
+
+	// TODO ROOTDIR ( needs to be implemented )
+	sprintf(mkdirbuf, "mkdir -p %s","/tmp/localroot");
+	fprintf(stderr,"executing %s\n", mkdirptr);
+	system(mkdirptr) ;
 
 
     fprintf(stderr, "about to call fuse_main\n");

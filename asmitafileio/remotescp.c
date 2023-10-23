@@ -132,8 +132,8 @@ int scpreadf(char *remotefileuri, char *localfilename)
     static char remoteuribuffer[5000];
     static char localfilebuffer[5000];
 
-    log_msg("SCPREAD:Length of local file name = %ld\n", strlen(localfilename));
-    log_msg("SCPREAD:4 letter prefix of local file name matches? = %s\n", strncmp(localfilename, slashtmp, 4L) ? "no" : "yes");
+    //log_msg("SCPREAD:Length of local file name = %ld\n", strlen(localfilename));
+    //log_msg("SCPREAD:4 letter prefix of local file name matches? = %s\n", strncmp(localfilename, slashtmp, 4L) ? "no" : "yes");
 
     if ((strlen(localfilename) < 4) || (strncmp(localfilename, slashtmp, 4) != 0))
     {
@@ -144,8 +144,8 @@ int scpreadf(char *remotefileuri, char *localfilename)
     sprintf(localfilebuffer, "%s", localfilename);
     sprintf(remoteuribuffer, "%s", remotefileuri);
 
-    log_msg("SCPREAD:Local file path: %s \n", localfilebuffer);
-    log_msg("SCPREAD:Remote file path: %s \n", remoteuribuffer);
+    //log_msg("SCPREAD:Local file path: %s \n", localfilebuffer);
+    //log_msg("SCPREAD:Remote file path: %s \n", remoteuribuffer);
 
     curl = curl_easy_init();
     FILE *fp = fopen(localfilebuffer, "wb");
@@ -198,8 +198,8 @@ int scpwritef(char *localfilename, char *remotefileuri)
     static char remoteuribuffer[5000];
     static char localfilebuffer[5000];
 
-    log_msg("SCPWRITE:Length of local file name = %ld\n", strlen(localfilename));
-    log_msg("SCPWRITE:4 letter prefix of local file name matches? = %s\n", strncmp(localfilename, slashtmp, 4L) ? "no" : "yes");
+    //log_msg("SCPWRITE:Length of local file name = %ld\n", strlen(localfilename));
+    //log_msg("SCPWRITE:4 letter prefix of local file name matches? = %s\n", strncmp(localfilename, slashtmp, 4L) ? "no" : "yes");
 
     if ((strlen(localfilename) < 4) || (strncmp(localfilename, slashtmp, 4) != 0))
     {
@@ -210,11 +210,11 @@ int scpwritef(char *localfilename, char *remotefileuri)
     sprintf(localfilebuffer, "%s", localfilename);
     sprintf(remoteuribuffer, "%s", remotefileuri);
 
-    log_msg("SCPWRITE:Local file path: %s \n", localfilebuffer);
-    log_msg("SCPWRITE:Remote file path: %s \n", remoteuribuffer);
+    //log_msg("SCPWRITE:Local file path: %s \n", localfilebuffer);
+    //log_msg("SCPWRITE:Remote file path: %s \n", remoteuribuffer);
 
     sprintf(cmdptr, "scp %s %s", localfilename, remotefileuri);
-    log_msg("SCPWRITE: command  %s\n", cmdptr);
+    //log_msg("SCPWRITE: command  %s\n", cmdptr);
 
     int retval;
 
@@ -222,12 +222,19 @@ int scpwritef(char *localfilename, char *remotefileuri)
 
     if (retval == 0)
     {
+		log_msg("scpwrite:Successful\n");
         return 0;
     }
     else
     {
+		log_msg("scpwrite:failed %s\n",cmdptr);
         return -1;
     }
+
+
+
+
+	/* below code is not used */
 
     CURL *curl;
     CURLcode res;
@@ -286,7 +293,7 @@ int remotedirnames(char *user, char *host, const char *dir, char *dirbuffer) {
 		//log_msg("RemoteDirName():The return value %s\n",buf);
 	}
 	//log_msg("---------------------\n");
-	log_msg("RemoteDirName():remotedirnames contents\n%s\n",dirbuffer);
+	//log_msg("RemoteDirName():remotedirnames contents\n%s\n",dirbuffer);
 	return remoteFileCount ; 
 }
 
@@ -305,7 +312,7 @@ int remotedir(char *user, char *host, char *dir, char *dirbuffer) {
 		//log_msg("RemoteDir():The return value %s\n",buf);
 	}
 	//log_msg("---------------------\n");
-	log_msg("RemoteDir():remotedir contents\n%s\n",dirbuffer);
+	//log_msg("RemoteDir():remotedir contents\n%s\n",dirbuffer);
 }
 
 
@@ -324,7 +331,7 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
 	char *retStr ; 
 
 
-	log_msg("------------------ remotestat -----------------\n");
+	//log_msg("------------------ remotestat -----------------\n");
     //char* cmd= "\"cd asmfsexports; ls -al foo | sed \\\"s/ \\\\+/,/g\\\" \" ";
     sprintf(cmd, "ssh %s@%s \"cd asmfsexports; ls -al ./%s | sed \\\"s/ \\\\+/ /g\\\" \" 2>&1", user, host, remotefilename);
     //int retval=system(tmp);
@@ -336,11 +343,11 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
         pclose(fp);
         return -1;
 	}
-   	log_msg("RemoteStat():Output is %s", buf);
+   	//log_msg("RemoteStat():Output is %s", buf);
 
     if(strncmp(buf,"total ",5)==0)
     {
-        log_msg("RemoteStat():It is a directory %s on the remote server \n", remotefilename);
+        //log_msg("RemoteStat():It is a directory %s on the remote server \n", remotefilename);
     	retStr = fgets(buf, sizeof(buf),fp);
 		if( retStr == NULL) {
         	log_msg("RemoteStat():Empty directory not a single line returned by ls -al %s on the remote server \n", remotefilename);
@@ -392,15 +399,15 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
 
 
 	int rwx = parseMode(retvalues[0]);
-	log_msg("RemoteStat():Permission is %o\n",rwx);
+	//log_msg("RemoteStat():Permission is %o\n",rwx);
 
 	long  sizeOfFile = 0 ; 
 	sscanf(retvalues[4],"%ld",&sizeOfFile);
 	int  numberOfLinks  ;
 	sscanf(retvalues[1],"%d",&numberOfLinks);
 
-	log_msg("RemoteStat():size is %ld\n",sizeOfFile);
-    log_msg("RemoteStat():number of links %d\n",numberOfLinks);
+	//log_msg("RemoteStat():size is %ld\n",sizeOfFile);
+    //log_msg("RemoteStat():number of links %d\n",numberOfLinks);
 
 	statbuf->st_mode = rwx ;
 	statbuf->st_nlink =  numberOfLinks    ;
@@ -411,12 +418,12 @@ int remotestat(char* user, char* host, const char* remotefilename,  struct stat 
 	statbuf->st_mtime = time(NULL);
 
 	if(statbuf->st_mode & S_IFREG ) {
-		log_msg("RemoteStat():entry is -rwx etc.\n");
+		//log_msg("RemoteStat():entry is -rwx etc.\n");
 	}
 	else if(statbuf->st_mode & S_IFDIR ) {
-		log_msg("RemoteStat():entry is drwx etc.\n");
+		//log_msg("RemoteStat():entry is drwx etc.\n");
 	} else {
-		log_msg("RemoteStat():unsupported i.e prwx,orlrwx \n");
+		//log_msg("RemoteStat():unsupported i.e prwx,orlrwx \n");
 	}
 
 

@@ -1,0 +1,42 @@
+test:	openrandread openrandread1 openrwandwrite8 openrwandwrite100 benchmarks read100 acceptance randomwrite
+	echo "building test suits"
+
+testclean:
+	rm -f randomwrite
+	rm -f openrandread 
+	rm -f openrandread1 
+	rm -f openrandwrite8 
+	rm -f openrwandwrite100 
+	rm -f benchmarks 
+	rm -f read100 
+	rm -f acceptance  
+	rm -f *.o
+
+
+openrandread: 	openrandread.o
+	gcc -o openrandread  openrandread.o
+
+openrandread1: 	openrandread1.o
+	gcc -o openrandread1  openrandread1.o
+
+
+openrwandwrite8: 	openrwandwrite8.o
+	gcc -o openrwandwrite8  openrwandwrite8.o
+
+openrwandwrite100: 	openrwandwrite100.o
+	gcc -o openrwandwrite100  openrwandwrite100.o
+
+benchmarks: 	benchmarks.o
+	gcc -o benchmarks  benchmarks.o
+
+read100: 	read100.o
+	gcc -o read100  read100.o
+
+acceptance:	acceptance.o
+	gcc -o acceptance   acceptance.o
+
+randomwrite:	randomwrite.o
+	gcc -o randomwrite   randomwrite.o
+
+.c.o:
+	gcc -c $<

@@ -2,20 +2,18 @@ BUILDHOST=`uname -n`
 MAKE_ASMFS_HOST=${ASMFS_HOST}
 MAKE_ASMFS_USER=${ASMFS_USER}
 
-all: asmitaapp asmfs asmitaremotetest remotescp ammifs test
+all: asmitaapp asmfs remotescp ammifs 
 	@echo "............................."
 	@echo "Building on:$(BUILDHOST)"
 	@echo "Asmita app is built"
-    
+	cd test ; make -f makefile.test 
+
+
 
 
 asmitaapp: asmitaapp.o 
 	echo "asmitaapp"
 	gcc -o asmitaapp asmitaapp.o
-
-asmitaremotetest: asmitaremotetest.o 
-	echo "asmitaremotehost"
-	gcc -o asmitaremotetest asmitaremotetest.o
 
 
 .c.o: 
@@ -27,9 +25,8 @@ clean:
 	rm -f bbfs
 	rm -f asmfs
 	rm -f ammifs
-	rm -f asmitaremotetest
 	rm -f remotescp
-	make testclean
+	cd test ; make -f makefile.test testclean
 
 asmitafs: asmitaapp 
 	echo "mounting and running the UT IO test"
@@ -88,22 +85,3 @@ remotescp:  remotescp_debug.o
 
 
 
-test:	filetest1 filetest2 filetest3 filetest4
-	echo "building test suits"
-
-testclean:
-	rm -f filetest1 filetest2 filetest3 filetest4
-
-
-filetest1: 	filetest1.o
-	gcc -o filetest1  filetest1.o
-
-filetest2: 	filetest2.o
-	gcc -o filetest2  filetest2.o
-
-
-filetest3: 	filetest3.o
-	gcc -o filetest3  filetest3.o
-
-filetest4: 	filetest4.o
-	gcc -o filetest4  filetest4.o

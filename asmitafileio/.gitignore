@@ -9,3 +9,11 @@ mountdir/*
 asmfs.log
 bbfs.log
 localroot/foo
+test/acceptance
+test/benchmarks
+test/openrandread
+test/openrandread1
+test/openrwandwrite100
+test/randomwrite
+test/read100
+ammifs

@@ -191,7 +191,7 @@ void log_fi (struct fuse_file_info *fi)
 void log_retstat(char *func, int retstat)
 {
     int errsave = errno;
-    //log_msg("    %s returned %d\n", func, retstat);
+    log_msg("    %s returned %d\n", func, retstat);
     errno = errsave;
 }
       
