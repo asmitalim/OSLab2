@@ -1,14 +1,19 @@
 bugs:
-	1 some time fd is kept open and not released why
-	2 opening a file first time ( if remote is there and no cache in /tmp ) gives fail result but actually cache is created ( But not opened )
-		may be related to bug1
-	3 echo "asmita asmita" > asmitajunk from the mountdir gives bash: Function not implemented ? 
-	4 echo "asmita asmita" > mountdir/asmitajunk from the ../mountdir gives file not found error
+	x - 1 some time fd is kept open and not released why
+			fixed by return 0 from read, write and readwrite
+	x 2 opening a file first time ( if remote is there and no cache in /tmp ) gives fail result but actually cache is created ( But not opened )
+			fixed by checking all conditins about file not there and reopening after downloading 
+	x 3 echo "asmita asmita" > asmitajunk from the mountdir gives bash: Function not implemented ? 
+			fixed by implementig return 0 from open
+	x 4 echo "asmita asmita" > mountdir/asmitajunk from the ../mountdir gives file not found error
+			same as 3
 	
 
 nicetohave
-	1. add astyle in makefile
-	2. move unwanted file into
+	x 1. add astyle in makefile
+		done
+	x 2. move unwanted file into another library
+		done
 	
 
 cleanup:
@@ -16,13 +21,19 @@ cleanup:
 	
 
 TODO
-	- ammifs.c:   // TODO  do_open() stat updated for the entry if copied from the remote machine
-	- ammifs.c:	// TODO do_release: case for WRONLY do we write back  - yes already done
-	- ammifs.c:	// TODO do_release(): non read, non writeonly and non readwrite case : implement writeback
-	- ammifs.c:	// TODO do_release: need to implement unlink the .cached file on last reference removed. ( or last close or can we just keep it? )
-	- ammifs.c:	// TODO do_release: can sync up directory entry with remotestat
-	- ammifs.c:   /* TODO getxattr not implemented yet*/
 	- ammifs.c:	// TODO main(): mkdir -p /tmp/localroot hardcoded , use passed argument instead
-
 	- handle case where scp failed but 0 byte file is created and localroot
+	- ammifs.c:   // TODO  do_open() stat updated for the entry if copied from the remote machine
+	- ammifs.c:	// TODO do_release: can sync up directory entry with remotestat
+
+
+	x - ammifs.c:	// TODO do_release: case for WRONLY do we write back  - yes already done
+			completed
+	x - ammifs.c:	// TODO do_release(): non read, non writeonly and non readwrite case : implement writeback
+			completed and handled
+
+
+deferred
+	- ammifs.c:	// TODO do_release: need to implement unlink the .cached file on last reference removed. ( or last close or can we just keep it? )
+	- ammifs.c:   /* TODO getxattr not implemented yet*/
 
