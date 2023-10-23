@@ -33,6 +33,7 @@ clean:
 	rm -f ammifs
 	rm -f remotescp
 	cd test ; make -f makefile.test testclean
+	rm -f *.orig
 
 asmitafs: asmitaapp 
 	echo "mounting and running the UT IO test"
