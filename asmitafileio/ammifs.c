@@ -94,7 +94,8 @@ void addFileIntoCache( const char *ptr, struct stat *statptr);
 
 
 void listAndRemoteDirNames() {
-    int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+    //int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+    int n = remotedirnames(ASM_DATA->remoteusername, AMS_DATA->remotehostname,"/", &dirStuff[0]);
 
     //int n = remotedirnames(ASM_DATA->remoteIP, ASM_DATA->remotehostname, path, dirbuffer);
 
@@ -117,7 +118,8 @@ void listAndRemoteDirNames() {
 
 
             //log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
-            int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
+            //int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
+            int x = remotestat(ASM_DATA->remoteusername, ASM_DATA->remotehostname,ptr, &statbuf);
             //log_stat(&statbuf);
 
 
