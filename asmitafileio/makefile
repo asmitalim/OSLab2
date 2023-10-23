@@ -50,6 +50,15 @@ asmitaremotefs: asmitaremotetest
 	#rm -f /tmp/remotejunk
 	cd ./mountdir; ../asmitaremotetest
 
+
+memonlocalroot:
+	mkdir -p /tmp/localroot
+	sudo chmod 777 /tmp/localroot
+	sudo mount -t tmpfs -o size=1024M localroot /tmp/localroot
+
+unmountlocalroot:
+	sudo umount /tmp/localroot
+
 mount:
 	rm -f ./asmfs.log
 	./ammifs ${ASMFS_HOST} ${ASMFS_USER} /tmp/localroot mountdir
@@ -92,6 +101,7 @@ remotescp_debug.o: remotescp.c
 
 remotescp:  remotescp_debug.o
 	gcc  -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST) -g -DREMOTESCPDEBUG -I/usr/include/fuse -g -O2 -o remotescp  remotescp_debug.o -pthread -lcurl
+
 
 
 

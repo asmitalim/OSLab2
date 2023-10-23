@@ -1,0 +1,57 @@
+
+buntz: …/asmitafuse/OSLab2/asmitafileio/mountdir asmita  @192.168.1.22 🐏  Mem:32%|Swap:0%
+🐚 🍎  ../test/benchmarks
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.01  w:89.99  13th index: 1.003
+Random, Small, samelocation, task0 ,5000000, 10, 19.947
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:50.02  w:49.98  13th index: 1.004
+Random, Small, samelocation, task0, 5000000, 50, 13.766
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:90.01  w: 9.99  13th index: 0.994
+Random, Small, samelocation, task0, 5000000, 70, 8.695
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.01  w:89.99  13th index: 0.994
+Random, Small, samelocation, task1, 5000000, 10, 20.068
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:50.02  w:49.98  13th index: 0.996
+Random, Small, samelocation, task1, 5000000, 50, 13.984
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.99  w:10.01  13th index: 1.003
+Random, Small, samelocation, task1, 5000000, 70, 8.675
+
+buntz: …/asmitafuse/OSLab2/asmitafileio/mountdir asmita  @192.168.1.22 🐏  Mem:32%|Swap:0% took 3m10s
+
+
