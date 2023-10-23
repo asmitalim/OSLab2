@@ -10,7 +10,7 @@
 #include "log.h"
 
 
-char dirStuff[5000] ; 
+static char dirStuff[5000] ; 
 
 
 #ifdef REMOTESCPDEBUG

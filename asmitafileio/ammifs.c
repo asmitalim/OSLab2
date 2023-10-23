@@ -87,7 +87,7 @@ FileMetaData  meta[TABLESIZE] ;
 
 
 
-char dirStuff[5000];
+static char dirStuff[5000];
 
 void addDirectoryEntry(const char *ptr, struct stat *statptr);
 void addFileIntoCache( const char *ptr, struct stat *statptr);
