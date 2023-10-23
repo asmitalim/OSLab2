@@ -17,3 +17,4 @@ test/openrwandwrite100
 test/randomwrite
 test/read100
 ammifs
+*.orig

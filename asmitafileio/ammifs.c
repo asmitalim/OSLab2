@@ -83,7 +83,7 @@ typedef struct {
     int fdcounts ; // valid numbers in open fds
 } FileMetaData ;
 
-FileMetaData  meta[TABLESIZE] ;  
+FileMetaData  meta[TABLESIZE] ;
 
 
 
@@ -723,7 +723,7 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
     int retstat = 0; // the sys call return state
     int fd;
-    int fdtemp; 
+    int fdtemp;
 
 
     char fpath[PATH_MAX];
@@ -743,22 +743,22 @@ int do_open(const char *path, struct fuse_file_info *fi) {
     asm_fullpath(fpath, path);
 
 
-	// 1  if inode entry exists
+    // 1  if inode entry exists
 
-	/*
-		update the size of localstat from remote ( not the content ) 
-		check if it is first local open
-			if it is first open 
-				copy the file over the cached
-				update the size entry of the inode
-				increment the reference and rw mode in the filename table
-				call the open with flags
-			if the subsequent open
-				open the cache file
-				increment the reference and rw mode with file handle for the file
-				call the open with flags.
-				
-	*/
+    /*
+    	update the size of localstat from remote ( not the content )
+    	check if it is first local open
+    		if it is first open
+    			copy the file over the cached
+    			update the size entry of the inode
+    			increment the reference and rw mode in the filename table
+    			call the open with flags
+    		if the subsequent open
+    			open the cache file
+    			increment the reference and rw mode with file handle for the file
+    			call the open with flags.
+
+    */
 
 
     sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
@@ -773,7 +773,7 @@ int do_open(const char *path, struct fuse_file_info *fi) {
     // check if the cached file exists if yes then open and return ( do not copy using scp )
     //scpreadf(uptr,tptr);
 
-	// open will fail if the remote file is not braught into the cache
+    // open will fail if the remote file is not braught into the cache
 
 
     fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
@@ -782,17 +782,17 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
 
     if (fdtemp < 0) {
-		// this path for the case when .cached file is not there, but direntry is there ( otherwise open will not be called )
+        // this path for the case when .cached file is not there, but direntry is there ( otherwise open will not be called )
         log_msg("do_open(): handling open failed with no <file>.cached \n");
         retstat = log_error("open");
 
-		// one option is to call scp to get a copy from remote machine, handle the case where the remote file is not there, and cache file is there
+        // one option is to call scp to get a copy from remote machine, handle the case where the remote file is not there, and cache file is there
         int scpOk = scpreadf(uptr,tptr);
 
         if( scpOk < 0 ) {
-			// scp failed so return i suppose
+            // scp failed so return i suppose
             log_error("do_open():scp read");
-			return retstat ; 
+            return retstat ;
         }
 
 
@@ -800,12 +800,12 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
         int secondfd = log_syscall("open", open(pathintemp, fi->flags), 0);
         if( secondfd < 0 )  {
-			// strange case where thestrange when scp succeeded and we do not have .cached file");
+            // strange case where thestrange when scp succeeded and we do not have .cached file");
             retstat = log_error("do_open(): scp succeeded and but  no .cached file");
-			return retstat ;
+            return retstat ;
         }
 
-		// successfully scp, and open
+        // successfully scp, and open
 
         //log_msg("do_open(): (2) %s opened with %d\n",pathintemp,secondfd);
 
@@ -816,16 +816,16 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
 
     } else {
-		// Successfull as .cached file exists and opened
-		// any further open will come here as .cached file existed.
+        // Successfull as .cached file exists and opened
+        // any further open will come here as .cached file existed.
 
         fi->fh = fdtemp;
-       	// log_msg("do_open():(first fd:%d) before returning\n",fdtemp);
+        // log_msg("do_open():(first fd:%d) before returning\n",fdtemp);
         log_fi(fi);
         return retstat ;
     }
     // unreachable but if reached so return -1
-	return -1 ;
+    return -1 ;
 }
 
 
@@ -915,7 +915,7 @@ int asm_read(const char *path, char *buf, size_t size, off_t offset, struct fuse
 
     retstat =  log_syscall("pread", pread(fi->fh, buf, size, offset), 0);
 
-	// Alternate way by seek followed by read or directly calling pread
+    // Alternate way by seek followed by read or directly calling pread
     //retstat = log_syscall("lseek", lseek(fi->fh, offset,SEEK_SET), 0);
     //retstat = log_syscall("read",  read(fi->fh, buf, size),0);
 
@@ -1027,9 +1027,9 @@ int do_release(const char *path, struct fuse_file_info *fi) {
     asm_fullpath(fpath, path);
 
 
-	// keep ready the paths for writing it back if needed.
-	sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
-	sprintf(pathInTempPtr, "%s.cached", fpath);
+    // keep ready the paths for writing it back if needed.
+    sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
+    sprintf(pathInTempPtr, "%s.cached", fpath);
 
 
 
@@ -1037,7 +1037,7 @@ int do_release(const char *path, struct fuse_file_info *fi) {
 
 
     if( (fi->flags & 0xff )  == O_RDONLY ) {
-		// readonly so just call the close 
+        // readonly so just call the close
         log_msg("release():flags = %x, releasing the fd with RDONLY\n",fi->flags);
         retvalue = log_syscall("close", close(fi->fh), 0 );
 
@@ -1046,21 +1046,21 @@ int do_release(const char *path, struct fuse_file_info *fi) {
         log_msg("release():releasing the fd with RDW\n");
         log_msg("release():flags = %x, releasing the fd with RDWR\n",fi->flags);
 
-		// sync the buffers back
+        // sync the buffers back
         fsync(fi->fh);
         fsync(fi->fh);
 
-		// close the file
+        // close the file
         retvalue = log_syscall("close", close(fi->fh), 0 );
 
 
-		// prepare the copy path
+        // prepare the copy path
         sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
         sprintf(pathInTempPtr, "%s.cached", fpath);
 
         log_msg("release: Writing back src:%s back to dst:%s\n",pathintemp, fullremoteuri);
 
-		// carry out the scp  from "/temp/.. (tptr)  to "remote" (uptr)
+        // carry out the scp  from "/temp/.. (tptr)  to "remote" (uptr)
         int scpretval = scpwritef(tptr,uptr);
         if(scpretval < 0 ) {
             log_error("scpwritef failed");
@@ -1073,54 +1073,54 @@ int do_release(const char *path, struct fuse_file_info *fi) {
         fsync(fi->fh);
         fsync(fi->fh);
 
-		// TODO do_release: case for WRONLY do we write back  - yes already done
+        // TODO do_release: case for WRONLY do we write back  - yes already done
 
         retvalue = log_syscall("close", close(fi->fh), 0 );
 
-		// prepare the copy path
+        // prepare the copy path
         sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
         sprintf(pathInTempPtr, "%s.cached", fpath);
 
         log_msg("release: Writing back src:%s back to dst:%s\n",pathintemp, fullremoteuri);
 
-		// carry out the scp  from "/temp/.. (tptr)  to "remote" (uptr)
+        // carry out the scp  from "/temp/.. (tptr)  to "remote" (uptr)
         int scpretval = scpwritef(tptr,uptr);
         if(scpretval < 0 ) {
             log_error("scpwritef failed");
         }
 
-	} else {
+    } else {
         log_msg("relesae(): handling case which is none of Readonly, writeonly or readwrite\n");
         fsync(fi->fh);
         fsync(fi->fh);
 
-		// TODO do_release(): non read, non writeonly and non readwrite case : implement writeback
+        // TODO do_release(): non read, non writeonly and non readwrite case : implement writeback
 
         retvalue = log_syscall("close", close(fi->fh), 0 );
 
     }
 
-	// TODO do_release: need to implement unlink the .cached file on last reference removed. ( or last close or can we just keep it? )
+    // TODO do_release: need to implement unlink the .cached file on last reference removed. ( or last close or can we just keep it? )
 
-	if( 0 ) {
+    if( 0 ) {
 
         //if we need to get some back of the cached file.
         //sprintf(rmcmd,"cp %s %s.back%06d ; rm -f %s",pathInTempPtr, pathInTempPtr,backnumber,pathInTempPtr); backnumber++ ;
 
-		//log_msg("\ndo_release(): file is removed with %s",rmcmd);
-		sprintf(rmcmd,"rm -f %s",pathInTempPtr); // typically /tmp/localroot/<file>.cached 
-		int cmdretval = system(rmcmd);
-	}
+        //log_msg("\ndo_release(): file is removed with %s",rmcmd);
+        sprintf(rmcmd,"rm -f %s",pathInTempPtr); // typically /tmp/localroot/<file>.cached
+        int cmdretval = system(rmcmd);
+    }
 
-	// TODO do_release: can sync up directory entry with remotestat
-
-
+    // TODO do_release: can sync up directory entry with remotestat
 
 
-	// finally return the syscall return value
-	return retvalue ; 
 
-	/* ------------------------- Done -------------------------------- */
+
+    // finally return the syscall return value
+    return retvalue ;
+
+    /* ------------------------- Done -------------------------------- */
 
 
 }
@@ -1458,9 +1458,9 @@ int main(int argc, char *argv[]) {
 
     fprintf(stderr, "Fuse library version %d.%d\n", FUSE_MAJOR_VERSION, FUSE_MINOR_VERSION);
 
-	for ( int tt = 0 ; tt < argc ; tt++) {
-		fprintf(stderr,"%s\n",argv[tt]);
-	}
+    for ( int tt = 0 ; tt < argc ; tt++) {
+        fprintf(stderr,"%s\n",argv[tt]);
+    }
 
     if ((argc < 5) || (argv[argc - 2][0] == '-') || (argv[argc - 1][0] == '-'))
         asm_usage();
@@ -1500,13 +1500,13 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "rootdir:%s\n", asm_data->rootdir);
 
 
-	static char mkdirbuf[PATH_MAX] ; 
-	char *mkdirptr  = &mkdirbuf[0] ;
+    static char mkdirbuf[PATH_MAX] ;
+    char *mkdirptr  = &mkdirbuf[0] ;
 
-	// TODO main(): mkdir -p /tmp/localroot hardcoded , use passed argument instead
-	sprintf(mkdirbuf, "mkdir -p %s","/tmp/localroot");
-	fprintf(stderr,"executing %s\n", mkdirptr);
-	system(mkdirptr) ;
+    // TODO main(): mkdir -p /tmp/localroot hardcoded , use passed argument instead
+    sprintf(mkdirbuf, "mkdir -p %s","/tmp/localroot");
+    fprintf(stderr,"executing %s\n", mkdirptr);
+    system(mkdirptr) ;
 
 
     fprintf(stderr, "about to call fuse_main\n");
