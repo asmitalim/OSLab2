@@ -85,10 +85,10 @@ remotescp.o: remotescp.c
 	gcc -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST)  -I/usr/include/fuse -g -O2   -c remotescp.c 
 
 remotescp_debug.o: remotescp.c
-	gcc -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST) -DREMOTESCPDEBUG -I/usr/include/fuse -g -O2 -o remotescp_debug.o  -c remotescp.c -pthread
+	gcc -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST) -g -DREMOTESCPDEBUG -I/usr/include/fuse -g -O2 -o remotescp_debug.o  -c remotescp.c -pthread
 
 remotescp:  remotescp_debug.o
-	gcc  -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST) -DREMOTESCPDEBUG -I/usr/include/fuse -g -O2 -o remotescp  remotescp_debug.o -pthread -lcurl
+	gcc  -D_FILE_OFFSET_BITS=64 -D$(BUILDHOST) -g -DREMOTESCPDEBUG -I/usr/include/fuse -g -O2 -o remotescp  remotescp_debug.o -pthread -lcurl
 
 
 

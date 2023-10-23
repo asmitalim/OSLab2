@@ -21,12 +21,39 @@ int main(void) {
     int retvalue;
     struct stat statbuff ;
 
+
+	char asmfs_host[1000];
+	char asmfs_user[1000] ; 
+	char *hptr = &asmfs_host[0] ;   
+	char *uptr = &asmfs_user[0] ;
+
+
+	if((hptr = getenv("ASMFS_HOST")) != (char *)NULL) {
+		sprintf(asmfs_host,"%s\n",hptr);
+	} else {
+		perror("no environment variable ASMFS_HOST");
+		exit(1);
+	}
+
+
+	if((uptr = getenv("ASMFS_USER")) != (char *)NULL) {
+		sprintf(asmfs_user,"%s\n",uptr);
+	} else {
+		perror("no environment variable ASMFS_USER");
+		exit(1);
+	}
+
+	sprintf(hptr,"%s", getenv("ASMFS_HOST"));
+	sprintf(uptr,"%s", getenv("ASMFS_USER"));
+
+
+	log_msg("host:%s(%d),user:%s(%d)\n",hptr, (int)strlen(hptr), uptr, (int)strlen(uptr));
+
 #ifdef buntz
-    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo", &statbuff);
-    remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "dirfoo/", &statbuff);
-    //remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com", "foo1", &statbuff);
-    remotedir("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
-    int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
+    remotestat(uptr, hptr, "foo", &statbuff);
+    remotestat(uptr, hptr, "dirfoo/", &statbuff);
+    remotedir(uptr,hptr,"/", &dirStuff[0]);
+    int n = remotedirnames(uptr,hptr,"/", &dirStuff[0]);
 
 
 

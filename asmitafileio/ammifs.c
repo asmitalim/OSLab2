@@ -87,23 +87,20 @@ FileMetaData  meta[TABLESIZE] ;
 
 
 
-static char dirStuff[5000];
+char dirStuffy[5000];
 
 void addDirectoryEntry(const char *ptr, struct stat *statptr);
 void addFileIntoCache( const char *ptr, struct stat *statptr);
 
 
 void listAndRemoteDirNames() {
-    //int n = remotedirnames("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com","/", &dirStuff[0]);
-    int n = remotedirnames(ASM_DATA->remoteuser, ASM_DATA->remotehostname,"/", &dirStuff[0]);
+    int n = remotedirnames(ASM_DATA->remoteuser, ASM_DATA->remotehostname,"/", &dirStuffy[0]);
 
-    //int n = remotedirnames(ASM_DATA->remoteIP, ASM_DATA->remotehostname, path, dirbuffer);
-
-    char *str = dirStuff ;
+    char *str = dirStuffy ;
     struct stat statbuf ;
 
     if( n != 0 ) {
-        int buflen = strlen(dirStuff);
+        int buflen = strlen(dirStuffy);
         char delim[] = "\n" ;
 
         char *ptr = strtok(str,delim);
@@ -118,20 +115,19 @@ void listAndRemoteDirNames() {
 
 
             //log_msg("REMOTEDIRNAME(): getting info for %s\n",ptr);
-            //int x = remotestat("ubiqadmin", "nandihill.centralindia.cloudapp.azure.com",ptr, &statbuf);
             int x = remotestat(ASM_DATA->remoteuser, ASM_DATA->remotehostname,ptr, &statbuf);
             //log_stat(&statbuf);
 
 
             if( x == 0 ) {
                 if(statbuf.st_mode & S_IFREG )  {
-                    log_msg("list:REMOTE:  %s is a file\n",ptr);
+                    log_msg("listAndRemoteDirNames():  %s is a file\n",ptr);
                     addFileIntoCache( ptr, &statbuf);
                 } else if(statbuf.st_mode & S_IFDIR ) {
-                    log_msg("list:REMOTE:  %s is a directory\n",ptr);
+                    log_msg("listAndRemoteDirNames():  %s is a directory\n",ptr);
                     addDirectoryEntry(ptr, &statbuf);
                 } else {
-                    log_msg("list:REMOTE:  %s is a unsupported file\n",ptr);
+                    log_msg("listAndRemoteDirName():  %s is a unsupported file\n",ptr);
                 }
             } else {
 
@@ -736,36 +732,20 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
 
     log_msg("\ndo_open(path\"%s\", fi=0x%08x)\n", path, fi);
-    log_fi(fi);
+    //log_fi(fi);
+	log_msg("do_open():flags = %x\n",fi->flags);
 
 
 
     asm_fullpath(fpath, path);
 
 
-    // 1  if inode entry exists
-
-    /*
-    	update the size of localstat from remote ( not the content )
-    	check if it is first local open
-    		if it is first open
-    			copy the file over the cached
-    			update the size entry of the inode
-    			increment the reference and rw mode in the filename table
-    			call the open with flags
-    		if the subsequent open
-    			open the cache file
-    			increment the reference and rw mode with file handle for the file
-    			call the open with flags.
-
-    */
-
 
     sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
     sprintf(pathintemp, "%s.cached", fpath);
 
-    log_msg("do_open():cached content is in %s\n",pathintemp);
-    log_msg("do_open():remote content is in %s\n", fullremoteuri);
+    //log_msg("do_open():cached content is in %s\n",pathintemp);
+    //log_msg("do_open():remote content is in %s\n", fullremoteuri);
 
     // TODO  do_open() stat updated for the entry if copied from the remote machine
 
@@ -777,22 +757,21 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
 
     fdtemp = log_syscall("open", open(pathintemp, fi->flags), 0);
-    log_msg("do_open():[.cached version]: (1) %s opened with %d\n",pathintemp,fdtemp);
+    //log_msg("do_open():file.cached : open(%s) return value %d\n",pathintemp,fdtemp);
 
 
 
     if (fdtemp < 0) {
         // this path for the case when .cached file is not there, but direntry is there ( otherwise open will not be called )
-        log_msg("do_open(): handling open failed with no <file>.cached \n");
-        retstat = log_error("open");
+        //log_msg("do_open(): handling open failed with no <file>.cached \n");
+        retstat = log_error("open(file.cached):");
 
         // one option is to call scp to get a copy from remote machine, handle the case where the remote file is not there, and cache file is there
         int scpOk = scpreadf(uptr,tptr);
 
         if( scpOk < 0 ) {
             // scp failed so return i suppose
-            log_error("do_open():scp read");
-            return retstat ;
+            log_msg("do_open():scpread()");
         }
 
 
@@ -802,7 +781,6 @@ int do_open(const char *path, struct fuse_file_info *fi) {
         if( secondfd < 0 )  {
             // strange case where thestrange when scp succeeded and we do not have .cached file");
             retstat = log_error("do_open(): scp succeeded and but  no .cached file");
-            return retstat ;
         }
 
         // successfully scp, and open
@@ -811,7 +789,12 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
         fi->fh = secondfd ;
         //log_fi(fi);
-        return retstat ;
+		log_msg("do_open(): get .cached and then OPEN RETURNS %d\n",secondfd);
+
+		if( secondfd == -1)
+			return retstat ; 
+		else 
+			return 0 ; 
 
 
 
@@ -821,8 +804,9 @@ int do_open(const char *path, struct fuse_file_info *fi) {
 
         fi->fh = fdtemp;
         // log_msg("do_open():(first fd:%d) before returning\n",fdtemp);
-        log_fi(fi);
-        return retstat ;
+        //log_fi(fi);
+		//log_msg("do_open(): alreadyhave .cached OPEN RETURNS %d\n",fdtemp);
+        return 0 ;
     }
     // unreachable but if reached so return -1
     return -1 ;
@@ -893,8 +877,10 @@ int do_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 
     int retstat = 0;
 
+	/*
     log_msg("\ndo_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
+	*/
 
     //log_fi(fi);
 
@@ -938,8 +924,10 @@ int do_write(const char *path, const char *buf, size_t size, off_t offset,
     */
     int retstat = 0;
 
+	/*
     log_msg("\ndo_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
             path, buf, size, offset, fi);
+	*/
     //log_fi(fi);
 
     retstat = log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
@@ -1023,7 +1011,8 @@ int do_release(const char *path, struct fuse_file_info *fi) {
     log_msg("\ndo_release(path=\"%s\", fi=0x%08x)\n",
             path, fi);
 
-    log_fi(fi);
+    //log_fi(fi);
+	log_msg("		flags = %x, handle = %d fh_old %d\n",fi->flags, fi->fh, fi->fh_old );
     asm_fullpath(fpath, path);
 
 
@@ -1033,18 +1022,17 @@ int do_release(const char *path, struct fuse_file_info *fi) {
 
 
 
-    log_msg("flags = %x : O_RDWR:%x, O_RDONLY:%x O_WRONLY:%x O_TRUNC:%x, O_CREAT:%x\n",fi->flags,O_RDWR,  O_RDONLY, O_WRONLY, O_TRUNC, O_CREAT);
+    //log_msg("flags = %x : O_RDWR:%x, O_RDONLY:%x O_WRONLY:%x O_TRUNC:%x, O_CREAT:%x\n",fi->flags,O_RDWR,  O_RDONLY, O_WRONLY, O_TRUNC, O_CREAT);
 
 
     if( (fi->flags & 0xff )  == O_RDONLY ) {
         // readonly so just call the close
-        log_msg("release():flags = %x, releasing the fd with RDONLY\n",fi->flags);
+        log_msg("do_release():flags = %x, releasing the fd with RDONLY\n",fi->flags);
         retvalue = log_syscall("close", close(fi->fh), 0 );
 
 
     } else if( (fi->flags & 0xff) == O_RDWR )  {
-        log_msg("release():releasing the fd with RDW\n");
-        log_msg("release():flags = %x, releasing the fd with RDWR\n",fi->flags);
+        log_msg("do_release():flags = %x, releasing the fd with RDWR\n",fi->flags);
 
         // sync the buffers back
         fsync(fi->fh);
@@ -1058,7 +1046,7 @@ int do_release(const char *path, struct fuse_file_info *fi) {
         sprintf(fullremoteuri,"scp://%s@%s/~/asmfsexports%s", ASM_DATA->remoteuser,ASM_DATA->remotehostname, path);
         sprintf(pathInTempPtr, "%s.cached", fpath);
 
-        log_msg("release: Writing back src:%s back to dst:%s\n",pathintemp, fullremoteuri);
+        log_msg("do_release(): Writing back src:%s back to dst:%s\n",pathintemp, fullremoteuri);
 
         // carry out the scp  from "/temp/.. (tptr)  to "remote" (uptr)
         int scpretval = scpwritef(tptr,uptr);
@@ -1068,12 +1056,10 @@ int do_release(const char *path, struct fuse_file_info *fi) {
 
 
     } else if( (fi->flags & 0xff) == O_WRONLY )  {
-        log_msg("release():releasing the fd with WRONLY\n");
         log_msg("release():flags = %x, releasing the fd with WRONLY\n",fi->flags);
         fsync(fi->fh);
         fsync(fi->fh);
 
-        // TODO do_release: case for WRONLY do we write back  - yes already done
 
         retvalue = log_syscall("close", close(fi->fh), 0 );
 
