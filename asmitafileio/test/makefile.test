@@ -1,4 +1,4 @@
-test:	openrandread openrandread1 openrwandwrite8 openrwandwrite100 benchmarks read100 acceptance randomwrite
+test:	openrandread openrandread1 openrwandwrite8 openrwandwrite100 benchmarks read100 acceptance randomwrite benchmarksold
 	echo "building test suits"
 
 testclean:
@@ -10,6 +10,7 @@ testclean:
 	rm -f benchmarks 
 	rm -f read100 
 	rm -f acceptance  
+	rm -f benchmarksold
 	rm -f *.o
 
 
@@ -28,6 +29,9 @@ openrwandwrite100: 	openrwandwrite100.o
 
 benchmarks: 	benchmarks.o
 	gcc -o benchmarks  benchmarks.o
+
+benchmarksold: 	benchmarksold.o
+	gcc -o benchmarks  benchmarksold.o
 
 read100: 	read100.o
 	gcc -o read100  read100.o

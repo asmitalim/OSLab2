@@ -17,6 +17,7 @@ asmitaapp: asmitaapp.o
 
 codingstandard: 
 	astyle --style=google ammifs.c
+	astyle --style=google ammireserve.c
 	astyle --style=google log.c
 	astyle --style=google remotescp.c
 	astyle --style=google asmitaapp.c
