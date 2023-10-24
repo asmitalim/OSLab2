@@ -10,10 +10,18 @@
 #include <time.h>
 
 #define MAXNUMBER 100000000L
+#define MAXNUMBER     50000L
 #define MAXNUMBER   5000000L
 
 #define NBYTES		   4096
 #define NBLOCKS         100
+
+// 400K
+// 4000K - 4M
+// 400MB
+#define NBLOCKS1 	   100
+#define NBLOCKS2 	  1000
+#define NBLOCKS3 	100000
 
 
 int
@@ -25,10 +33,13 @@ void doRandomTask0(int fd, char *charbuf, int rw, int idx) ;
 void doRandomTask1(int fd, char *charbuf, int rw, int idx) ;
 void doSequentialTask0(int fd, char *charbuf, int rw, int idx) ;
 
-char _buf[NBLOCKS*NBYTES];
+
+
 char readbuf[NBYTES];
 char writebuf[NBYTES];
 
+
+int globalNBlocks = NBLOCKS ; 
 
 
 
@@ -46,14 +57,14 @@ int pickupreadorwrite(int readpercentage)
 
 int randompickindex()
 {
-    int idx = rand() % NBLOCKS ;
+    int idx = rand() % globalNBlocks ;
     return idx ;
 }
 
 int getnextindex()
 {
 	static int idx = 0 ; 
-    return (idx++%NBLOCKS) ;
+    return (idx++%globalNBlocks) ;
 }
 
 
@@ -63,52 +74,70 @@ double timespent(clock_t endtick, clock_t starttick) {
 }
 	
 
-int main() {	
+int blocks[] = { NBLOCKS1, NBLOCKS2, NBLOCKS3 } ;
+int N = 3; 
+
+int main(int argc, char *argv[]) {	
 	clock_t tick0 ;
 	clock_t tick1 ;
 	double casetime ; 
-	fprintf(stderr,"running test\n");
-	fprintf(stderr,"simple test\n");
-
-	
-	/*
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,10,0); tick1 = clock();
-	casetime= timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task0 ,%ld, %d, %5.3lf\n",MAXNUMBER, 10, casetime);
 
 
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,50,0); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task0, %ld, %d, %5.3lf\n",MAXNUMBER, 50, casetime);
+	for ( int loopcount = 0 ; loopcount <  N ; loopcount ++) {	
 
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,90,0); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task0, %ld, %d, %5.3lf\n",MAXNUMBER, 70, casetime);
-	*/
+				int currentNBlock = blocks[loopcount] ;
 
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,0,1); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 0, casetime);
+				globalNBlocks = currentNBlock ; 
+				double  currentFileSize = currentNBlock * NBYTES /1000000.0 ; 
 
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,50,1); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 50, casetime);
+					/*
+					tick0 = clock(); randomtestsmallsize(MAXNUMBER,10,0); tick1 = clock();
+					casetime= timespent(tick1,tick0);
+					printf("Random, filesize:%5.1lf Mbytes, task0 ,%ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 10, globalNBlcoks, casetime);
+					printf("\n");
 
-	tick0 = clock(); 
-	randomtestsmallsize(MAXNUMBER,100,1); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 100, casetime);
-	
 
-	tick0 = clock(); sequentialsmallsize(MAXNUMBER,0,0); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Sequential, Small, samelocation, task0, %ld, %d, %5.3lf\n",MAXNUMBER, 0, casetime);
+					tick0 = clock(); randomtestsmallsize(MAXNUMBER,50,0); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Random, filesize:%5.1lf MBytes, task0, %ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 50, globalNBlcoks, casetime);
+					printf("\n");
 
-	tick0 = clock(); sequentialsmallsize(MAXNUMBER,100,0); tick1 = clock();
-	casetime = timespent(tick1,tick0);
-	printf("Sequential, Small, samelocation, task0, %ld, %d, %5.3lf\n",MAXNUMBER, 100, casetime);
+					tick0 = clock(); randomtestsmallsize(MAXNUMBER,90,0); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Random, filesize:%5.1lf MBytes, task0, %ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 70, globalNBlcoks, casetime);
+					printf("\n");
+					*/
+
+					tick0 = clock(); randomtestsmallsize(MAXNUMBER,0,1); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Random, filesize:%5.1lf MBytes,  task1, %ld, %d, blocks %d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 0, globalNBlocks, casetime);
+					printf("\n");
+
+					tick0 = clock(); randomtestsmallsize(MAXNUMBER,50,1); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Random, filesize:%5.1lf MBytes, task1, %ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 50,  globalNBlocks, casetime);
+					printf("\n");
+
+					tick0 = clock(); 
+					randomtestsmallsize(MAXNUMBER,100,1); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Random, filesize:%5.1lf MBytes, task1, %ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 100, globalNBlocks, casetime);
+					printf("\n");
+					
+
+					tick0 = clock(); sequentialsmallsize(MAXNUMBER,0,0); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Sequential, filesize:%5.1lf MBytes, task0, %ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 0, globalNBlocks, casetime);
+					printf("\n");
+
+					tick0 = clock(); sequentialsmallsize(MAXNUMBER,100,0); tick1 = clock();
+					casetime = timespent(tick1,tick0);
+					printf("Sequential, filesize:%5.1lf MBytes, task0, %ld, %d, blocks:%d, time:%5.3lf\n",currentFileSize,MAXNUMBER, 100, globalNBlocks, casetime);
+					printf("\n");
+	}
 }
 
+int indexc[NBLOCKS3] ;
 
 /*  maxnumber is loop count, readpercentage in int 0-100 */
 int
@@ -122,12 +151,12 @@ randomtestsmallsize(long maxnumber,int readpercentage, int tasknumber)
     int i ;
     int rw;
     int rwc[2] ;
-    int indexc[NBLOCKS] ;
 
 	for(int m =0 ; m < 2 ; m++) rwc[m] = 0 ;
-	for(int m =0 ; m < NBLOCKS ; m++) indexc[m] = 0 ;
+	for(int m =0 ; m < NBLOCKS3 ; m++) indexc[m] = 0 ;
 
 
+	
 
 
 	int nb1, nb2 ; 
@@ -152,7 +181,7 @@ randomtestsmallsize(long maxnumber,int readpercentage, int tasknumber)
 
     lseek(fd1,0L,SEEK_SET);
     nb2 = write(fd1,writebuf,NBYTES);
-	fprintf(stderr,"Initial bytes written %d\n",nb2);
+	//fprintf(stderr,"Initial bytes written %d\n",nb2);
 
     for( x = 0 ; x < maxnumber ; x++) {
 
@@ -190,10 +219,10 @@ sequentialsmallsize(long maxnumber,int readpercentage, int tasknumber)
     int i ;
     int rw;
     int rwc[2] ;
-    int indexc[NBLOCKS] ;
+    //int indexc[NBLOCKS3] ;
 
 	for(int m =0 ; m < 2 ; m++) rwc[m] = 0 ;
-	for(int m =0 ; m < NBLOCKS ; m++) indexc[m] = 0 ;
+	for(int m =0 ; m < NBLOCKS3 ; m++) indexc[m] = 0 ;
 
 
 
@@ -224,17 +253,10 @@ sequentialsmallsize(long maxnumber,int readpercentage, int tasknumber)
 		writebuf[bufindex] = bufindex%256 ; 
 	}
 
-	/*
-    for( int yy =0 ; yy < 100 ; yy++) {
-        for( xx = 0 ; xx < 100 ; xx ++) {
-            bufblocks[yy*100+xx] = yy ;
-        }
-    }
-	*/
 
     lseek(fd1,0L,SEEK_SET);
     nb2 = write(fd1,writebuf,NBYTES);
-	fprintf(stderr,"Initial bytes written %d\n",nb2);
+	//fprintf(stderr,"Initial bytes written %d\n",nb2);
 
     for( x = 0 ; x < maxnumber ; x++) {
 
