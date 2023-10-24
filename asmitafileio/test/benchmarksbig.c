@@ -10,7 +10,7 @@
 #include <time.h>
 
 #define MAXNUMBER 100000000L
-#define MAXNUMBER  5000000L
+#define MAXNUMBER   5000000L
 
 #define NBYTES		   4096
 #define NBLOCKS         100
@@ -29,11 +29,6 @@ char _buf[NBLOCKS*NBYTES];
 char readbuf[NBYTES];
 char writebuf[NBYTES];
 
-
-/*
-char _tempbuf[NBYTES] ; // DO NOT NEED IT
-char *_bufblocks = &buf[0] ; // DO NOT NEED IT
-*/
 
 
 
@@ -76,6 +71,7 @@ int main() {
 	fprintf(stderr,"simple test\n");
 
 	
+	/*
 	tick0 = clock(); randomtestsmallsize(MAXNUMBER,10,0); tick1 = clock();
 	casetime= timespent(tick1,tick0);
 	printf("Random, Small, samelocation, task0 ,%ld, %d, %5.3lf\n",MAXNUMBER, 10, casetime);
@@ -88,19 +84,20 @@ int main() {
 	tick0 = clock(); randomtestsmallsize(MAXNUMBER,90,0); tick1 = clock();
 	casetime = timespent(tick1,tick0);
 	printf("Random, Small, samelocation, task0, %ld, %d, %5.3lf\n",MAXNUMBER, 70, casetime);
+	*/
 
-	tick0 = clock(); randomtestsmallsize(MAXNUMBER,10,1); tick1 = clock();
+	tick0 = clock(); randomtestsmallsize(MAXNUMBER,0,1); tick1 = clock();
 	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 10, casetime);
+	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 0, casetime);
 
 	tick0 = clock(); randomtestsmallsize(MAXNUMBER,50,1); tick1 = clock();
 	casetime = timespent(tick1,tick0);
 	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 50, casetime);
 
 	tick0 = clock(); 
-	randomtestsmallsize(MAXNUMBER,90,1); tick1 = clock();
+	randomtestsmallsize(MAXNUMBER,100,1); tick1 = clock();
 	casetime = timespent(tick1,tick0);
-	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 70, casetime);
+	printf("Random, Small, samelocation, task1, %ld, %d, %5.3lf\n",MAXNUMBER, 100, casetime);
 	
 
 	tick0 = clock(); sequentialsmallsize(MAXNUMBER,0,0); tick1 = clock();
