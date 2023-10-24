@@ -33,7 +33,7 @@
 #define HAVE_MKFIFO 1
 
 /* Define to 1 if you have the `realpath' function. */
-#define HAVE_REALPATH 1
+#define HAVE_REALPATH 0
 
 /* Define to 1 if you have the `rmdir' function. */
 #define HAVE_RMDIR 1

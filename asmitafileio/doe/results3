@@ -1,0 +1,99 @@
+
+
+Sequential read and write
+
+🐚 🍎  ./asmitaremotetest
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 0.00  w:100.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 0, 8.005
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+actuall it is read...
+r: 0.00  w:100.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 100, 8.036
+
+
+
+repeat for disk
+
+🐚 🍎  ./asmitaremotetest
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 0.00  w:100.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 0, 8.004
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:100.00  w: 0.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 100, 7.227
+
+
+
+
+ASMFS RESULTS
+=============
+
+🐚 🍎  ../asmitaremotetest
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 0.00  w:100.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 0, 37.220
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:100.00  w: 0.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 100, 7.524
+
+
+
+NAS RESULTS
+==========
+
+🐚 🍎  ../asmitaremotetest
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 0.00  w:100.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 0, 11.254
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:100.00  w: 0.00  13th index: 1.000
+Sequential, Small, samelocation, task0, 5000000, 100, 8.450

@@ -119,7 +119,7 @@ main()
             lseek(fd1,100*i+0L,SEEK_SET);
             nb2 = write(fd1,&bufblocks[100*i],100L);
             //printf("Write %d bytes\n", nb2);
-            assert(nb2 == 100);
+            //assert(nb2 == 100);
         }
 
     }

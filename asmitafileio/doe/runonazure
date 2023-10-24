@@ -1,0 +1,169 @@
+
+smita@asmclient:~/projects/OSLab2/asmitafileio/mountdir$ ../test/benchmarks
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 9.98  w:90.02  13th index: 0.997
+Random, Small, samelocation, task0 ,5000000, 10, 51.359
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.97  w:50.03  13th index: 1.001
+Random, Small, samelocation, task0, 5000000, 50, 30.154
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:90.01  w: 9.99  13th index: 1.007
+Random, Small, samelocation, task0, 5000000, 70, 9.159
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.01  w:89.99  13th index: 1.000
+Random, Small, samelocation, task1, 5000000, 10, 51.757
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.97  w:50.03  13th index: 0.999
+Random, Small, samelocation, task1, 5000000, 50, 30.792
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.99  w:10.01  13th index: 0.998
+Random, Small, samelocation, task1, 5000000, 70, 9.333
+asmita@asmclient:~/projects/OSLab2/asmitafileio/mountdir$
+
+
+
+NFS
+
+
+smita@asmclient:~/projects/OSLab2/asmitafileio/nfsmount$ ../test/benchmarks
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 9.99  w:90.01  13th index: 1.002
+Random, Small, samelocation, task0 ,5000000, 10, 7.766
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.98  w:50.02  13th index: 0.987
+Random, Small, samelocation, task0, 5000000, 50, 6.484
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.98  w:10.02  13th index: 1.004
+Random, Small, samelocation, task0, 5000000, 70, 4.945
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 9.98  w:90.02  13th index: 1.004
+Random, Small, samelocation, task1, 5000000, 10, 7.842
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:50.04  w:49.96  13th index: 1.002
+Random, Small, samelocation, task1, 5000000, 50, 6.591
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.99  w:10.01  13th index: 0.999
+Random, Small, samelocation, task1, 5000000, 70, 5.096
+asmita@asmclient:~/projects/OSLab2/asmitafileio/nfsmount$
+
+
+
+Local DIsk 
+
+asmita@asmclient:~/projects/OSLab2/asmitafileio/diskdir$ ../test/benchmarks
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.00  w:90.00  13th index: 1.001
+Random, Small, samelocation, task0 ,5000000, 10, 5.898
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:50.03  w:49.97  13th index: 0.994
+Random, Small, samelocation, task0, 5000000, 50, 5.189
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:90.03  w: 9.97  13th index: 1.001
+Random, Small, samelocation, task0, 5000000, 70, 4.297
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r: 9.97  w:90.03  13th index: 1.002
+Random, Small, samelocation, task1, 5000000, 10, 5.945
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.99  w:50.01  13th index: 1.000
+Random, Small, samelocation, task1, 5000000, 50, 5.256
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:90.01  w: 9.99  13th index: 1.001
+Random, Small, samelocation, task1, 5000000, 70, 4.376
+asmita@asmclient:~/projects/OSLab2/asmitafileio/diskdir$
+

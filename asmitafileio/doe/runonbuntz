@@ -1,0 +1,148 @@
+
+on ammifs
+
+
+🐚 🍎  ../test/benchmarks
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.01  w:89.99  13th index: 0.997
+Random, Small, samelocation, task0 ,5000000, 10, 19.545
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.98  w:50.02  13th index: 1.001
+Random, Small, samelocation, task0, 5000000, 50, 14.032
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.98  w:10.02  13th index: 1.002
+Random, Small, samelocation, task0, 5000000, 70, 8.712
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.02  w:89.98  13th index: 1.011
+Random, Small, samelocation, task1, 5000000, 10, 20.220
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:50.02  w:49.98  13th index: 1.003
+Random, Small, samelocation, task1, 5000000, 50, 14.320
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.99  w:10.01  13th index: 1.000
+Random, Small, samelocation, task1, 5000000, 70, 8.727
+
+
+====================================================
+
+
+tmpfs on /tmp/localroot instead of ssd
+memory
+
+
+sudo mount -t tmpfs -o size=1024m localroot /tmp/localroot
+sudo umount /tmp/localroot/
+
+localroot      tmpfs     1.0G   12K  1.0G   1% /tmp/localroo
+
+
+on ramdisk
+🐚 ✗  sudo dd if=/dev/random of=/tmp/localroot/randomouts bs=4k count=2500
+2500+0 records in
+2500+0 records out
+10240000 bytes (10 MB, 9.8 MiB) copied, 0.0399358 s, 256 MB/s
+
+
+
+onssd ( not much difference ) 
+🐚 🍎  sudo dd if=/dev/random of=/tmp/localroot/randomouts bs=4k count=2500
+2500+0 records in
+2500+0 records out
+10240000 bytes (10 MB, 9.8 MiB) copied, 0.0469096 s, 218 MB/s
+
+
+flushing out the buffers
+buntz: ~ asmita  @192.168.1.22 via C v9.4.0-gcc 🐏  Mem:34%|Swap:0% as 👩‍💻
+🐚 🍎  sudo dd if=/dev/random of=./randomouts bs=4k count=2500
+2500+0 records in
+2500+0 records out
+10240000 bytes (10 MB, 9.8 MiB) copied, 0.12326 s, 83.1 MB/s
+
+
+🐚 🍎  ../test/benchmarks
+running test
+simple test
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.02  w:89.98  13th index: 1.006
+Random, Small, samelocation, task0 ,5000000, 10, 19.367
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.98  w:50.02  13th index: 0.996
+Random, Small, samelocation, task0, 5000000, 50, 14.310
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:89.98  w:10.02  13th index: 1.001
+Random, Small, samelocation, task0, 5000000, 70, 8.761
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:10.01  w:89.99  13th index: 1.003
+Random, Small, samelocation, task1, 5000000, 10, 19.923
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:49.99  w:50.01  13th index: 1.002
+Random, Small, samelocation, task1, 5000000, 50, 14.808
+Initial bytes written 100
+20.00 %
+40.00 %
+60.00 %
+80.00 %
+100.00 %
+r:90.00  w:10.00  13th index: 1.006
+Random, Small, samelocation, task1, 5000000, 70, 8.783
+
+
+
+
