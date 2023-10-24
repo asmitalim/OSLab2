@@ -36,7 +36,7 @@ main(int argc, char **argv) {
     }
 
 
-	sprintf(buf, "prasanna");
+	sprintf(buf, "asmitali");
 
 	n = write(fd,buf,strlen(strPtr));
 	if( n < 0) {
@@ -53,28 +53,4 @@ main(int argc, char **argv) {
     close(fd);
     exit(0);
 
-
-
-
-
-    int fd0,fd1 ;
-    int nb0, nb1 ;
-    long ls = lseek(fd0,0L,SEEK_SET);
-
-
-    printf("seeked to %ld\n",ls);
-    nb0 = write(fd0, buf, 100);
-    printf("Wrote %d, then xx  bytes\n", nb0);
-    close(fd0);
-    lseek(fd1,100L,SEEK_SET);
-    nb1 = read(fd1, buf, 100);
-    assert(buf[0] == 9);
-    assert(buf[1] == 81);
-    assert(buf[2] == 'A');
-    assert(buf[3] == 'q');
-    assert(buf[4] == '0');
-    nb1 = read(fd1, buf, 100);
-    close(fd1);
-    printf("Wrote %d, then %d bytes\n", nb0, nb1);
-    return 0;
 }
